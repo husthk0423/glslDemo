@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>hk_涟漪水</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay">
+    <h1>Loading...</h1>
+</div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    var waterPrimitive;
+    // var timeClock=0.1;
+    
+    function startup(Cesium) {
+        createMap();
+    }
+   
+    function createMap() {
+        let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+            url:'http://data.mars3d.cn/terrain'
+
+        });
+        viewer = new Cesium.Viewer('cesiumContainer', {
+            selectionIndicator: false,
+            terrainProvider: cesiumTerrainProvider,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: true, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: true, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            vrButton: true,
+            useBrowserRecommendedResolution: false,
+            fullscreenButton: true
+        });
+        
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.preloadAncestors = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+        var scene = viewer.scene;
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "",
+            style: "",
+            format: "",
+            tileMatrixSetID: "",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        viewer.imageryLayers.add(tiandituImageLayer);
+
+        var polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                    // 119.467444, 28.562214,
+                    // 119.741000, 28.379154,
+                    // 119.639312, 28.372095,
+                    // 119.547387, 28.319825,
+                    // 119.374338, 28.43156,
+                    // 119.308763, 28.543007,
+                    // 119.324388, 28.596889,
+                    // 119.448939, 28.584777
+                    119.486343,28.447563,
+                    119.486339,28.447360,
+                    119.485924,28.447390,
+                    119.485901,28.447562
+                ]),
+                height: 0.5,
+                extrudedHeight:0.5,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000').withAlpha(0.5))
+            }
+        });
+
+        var polygonInstance1 = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                    119.485212,28.447560,
+                    119.485723,28.447568,
+                    119.485752,28.447438,
+                    119.485339,28.447461
+                ]),
+                height: 0.5,
+                extrudedHeight:0.5,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000').withAlpha(0.5))
+            }
+        });
+
+        var polygonInstance2 = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.479180,28.454855,
+                119.497524,28.454274,
+                119.494177,28.445265,
+                119.481219,28.445590
+
+                ]),
+                height: 0.5,
+                extrudedHeight:0.5,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000').withAlpha(0.5))
+            }
+        });
+
+       
+
+    const czmFresnel=
+    `      
+    #define MAX_RADIUS 2
+    #define HASHSCALE1 .1
+    #define HASHSCALE3 vec3(0.1,0.2,0.3)
+
+    float getMixValue(float cycle, inout float offset1, inout float offset2)
+    {
+
+        float mixval = cycle * 2.0;
+        if(mixval > 1.0) mixval = 2.0 - mixval;
+        offset1 = cycle;
+        offset2 = mod(offset1 + .5, 1.0);
+        return mixval;
+    }
+
+    float  getInterval(float _interval)
+    {
+        float time = czm_frameNumber;
+        //间隔速度，值越大，间隔时间越长；值越小，间隔时间越大；
+        float cycle = mod(time, _interval)/_interval;   
+        return cycle;
+    }
+ 
+    float hash12(vec2 p)
+    {
+        vec3 p3  = fract(vec3(p.xyx) * HASHSCALE1);
+        p3 += dot(p3, p3.yzx + 10.);
+        return fract((p3.x + p3.y) * p3.z); 
+    }
+
+    vec2 hash22(vec2 p)
+    {
+        vec3 p3 = fract(vec3(p.xyx) * HASHSCALE3);
+        p3 += dot(p3, p3.yzx+20.);
+        return fract((p3.xx+p3.yz)*p3.zy);
+
+    }
+    vec3 getRippleColor(float t,vec2 _uv,float tiling)
+    {
+        float LianyiTime=t;
+        vec2 uv = _uv *tiling;
+        vec2 p0 = floor(uv);
+        vec2 circles = vec2(0.);
+        for (int j = -MAX_RADIUS; j <= MAX_RADIUS; ++j)
+        {
+            for (int i = -MAX_RADIUS; i <= MAX_RADIUS; ++i)
+            {
+                vec2 pi = p0 + vec2(i, j);
+                vec2 p = pi + hash22(pi);
+
+                float t = fract(0.05*LianyiTime + hash12(pi));
+                vec2 v = p-uv;
+                float d = length(v) - (float(MAX_RADIUS) + 1.)*t;
+
+                float h = 1e-3;
+                float d1 = d - h;
+                float d2 = d + h;   
+                float p1 = sin(31.*d1) * smoothstep(-0.6, -0.3, d1) * smoothstep(0., -0.3, d1);
+                float p2 = sin(31.*d2) * smoothstep(-0.6, -0.3, d2) * smoothstep(0., -0.3, d2); 
+                circles += 0.5 * normalize(v) * ((p2 - p1) / (2. * h) * (1. - t) * (1. - t));
+            }
+        }
+        circles /= float((MAX_RADIUS*2+1)*(MAX_RADIUS*2+1));
+        float intensity = mix(0.01, 0.15, smoothstep(0.1, 0.6, abs(fract(0.05*LianyiTime + 0.5)*2.-1.)));
+        vec3 n = vec3(circles, sqrt(1. - dot(circles, circles)));
+        vec3 _color = texture2D(RippleImg, _uv-intensity*n.xy).rgb;
+        float nosie = 5.*pow(clamp(dot(n, normalize(vec3(1., 0.7, 0.5))), 0., 1.), 6.);
+        _color = _color + nosie;
+        return _color;
+
+    }   
+    czm_material czm_getMaterial(czm_materialInput materialInput)
+    { 
+        czm_material material = czm_getDefaultMaterial(materialInput); 
+        float tiling = 20.;
+        float LianyiTime = czm_frameNumber/5.;
+        vec3 _color=getRippleColor(LianyiTime,materialInput.st,tiling);
+    
+
+        material.diffuse=_color;
+        return material;
+        }
+    `;
+
+    const mWater = new Cesium.Material({
+    fabric: {
+        uniforms: {
+            //iChannel4
+            RippleImg: "../image/river0.png",
+        },
+        source: czmFresnel
+    }
+    });
+       
+    waterPrimitive = new Cesium.GroundPrimitive({
+        show: true,
+        geometryInstances: [polygonInstance,polygonInstance1,polygonInstance2],
+        undisplayable: true,
+        appearance: new Cesium.EllipsoidSurfaceAppearance({
+            material:mWater
+        })
+    });
+    
+    viewer.scene.primitives.add(waterPrimitive);
+    
+    var redPolygon = viewer.entities.add({
+            name: 'Red polygon on surface',
+            polygon: {
+                hierarchy: Cesium.Cartesian3.fromDegreesArray([
+                119.485937,28.447683,
+                119.485936,28.447931,
+                119.486279,28.447985,
+                119.486297,28.447741]),
+                material: Cesium.Color.RED
+            }
+        });
+    viewer.flyTo(redPolygon)
+    viewer.clock.currentTime = Cesium.JulianDate.addHours(Cesium.JulianDate.now(new Date()),-3, new Cesium.JulianDate());
+    viewer.scene.postProcessStages._fxaa.enabled = true;    
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+            var position = event.position;
+            var cartesian =  viewer.scene.pickPosition(position);
+            if (!Cesium.defined(cartesian)) {
+                return;
+            }
+            var ellipsoid=viewer.scene.globe.ellipsoid;
+            var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            var height=cartographic.height;
+            console.log(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        startup(Cesium);
+    }
+</script>
+</body>
+
+</html>

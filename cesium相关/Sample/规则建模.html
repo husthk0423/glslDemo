@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">  <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>规则建模</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+   <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+</head>
+<body class="sandcastle-loading" data-sandcastle-bucket="bucket-requirejs.html">
+<style>
+    html, body, #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer, .cesium-viewer-cesiumWidgetContainer, .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <button class="btn btn-primary" onclick="level2()">层高2米</button>
+    <button class="btn btn-info" onclick="level5()">层高5米</button>
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay"><h1>Loading...</h1></div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    var cityHouseLayer;
+    function startup(Cesium) {
+		createMap();
+    }
+
+    function level2(){
+        if(cityHouseLayer){
+            viewer.imageryLayers.remove(cityHouseLayer);
+        }
+        cityHouseLayer = new Cesium.ImageryLayer(
+            new Custom.HouseTileServiceImageryProvider(viewer, {
+                url:
+                    "http://114.116.200.186:9083/mapserver/data/现状数据服务/getData?styleId=房屋&x={x}&y={y}&l={z}&tilesize=512",
+                tilingScheme: new Cesium.GeographicTilingScheme({
+                    numberOfLevelZeroTilesX: 2,
+                    numberOfLevelZeroTilesY: 1
+                }),
+                tileMatrixLabels: [
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    "10",
+                    "11",
+                    "12",
+                    "13",
+                    "14",
+                    "15",
+                    "16",
+                    "17",
+                    "18",
+                    "19",
+                    "20",
+                    "21",
+                    "22"
+                ],
+                maximumLevel: 18,
+                tileWidth: 512,
+                tileHeight: 512,
+                //是否需要数据解码
+                needDecode: false,
+                translucent: false,
+                //房屋颜色
+                fillColor: '#cccccc',
+                //房屋透明度
+                opacity: 1.0,
+                dataType:'binary',
+                //房屋图层
+                filterLayerId: ["房屋"],
+                //房屋高度字段
+                heightProperty: "height",
+                //高度缩放比例,即每层高3.2米
+                heightScale: "2.0",
+                showLevel: 1
+            })
+        );
+        viewer.imageryLayers.add(cityHouseLayer);
+    }
+
+    function level5(){
+        if(cityHouseLayer){
+            viewer.imageryLayers.remove(cityHouseLayer);
+        }
+        cityHouseLayer = new Cesium.ImageryLayer(
+            new Custom.HouseTileServiceImageryProvider(viewer, {
+                url:
+                    "http://114.116.200.186:9083/mapserver/data/现状数据服务/getData?styleId=房屋&x={x}&y={y}&l={z}&tilesize=512",
+                tilingScheme: new Cesium.GeographicTilingScheme({
+                    numberOfLevelZeroTilesX: 2,
+                    numberOfLevelZeroTilesY: 1
+                }),
+                tileMatrixLabels: [
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    "10",
+                    "11",
+                    "12",
+                    "13",
+                    "14",
+                    "15",
+                    "16",
+                    "17",
+                    "18",
+                    "19",
+                    "20",
+                    "21",
+                    "22"
+                ],
+                maximumLevel: 18,
+                tileWidth: 512,
+                tileHeight: 512,
+                //是否需要数据解码
+                needDecode: false,
+                translucent: false,
+                //房屋颜色
+                fillColor: '#cccccc',
+                //房屋透明度
+                opacity: 1.0,
+                dataType:'binary',
+                //房屋图层
+                filterLayerId: ["房屋"],
+                //房屋高度字段
+                heightProperty: "height",
+                //高度缩放比例,即每层高3.2米
+                heightScale: "5.0",
+                showLevel: 1
+            })
+        );
+        viewer.imageryLayers.add(cityHouseLayer);
+    }
+
+    function createMap() {
+        viewer  = new Cesium.Viewer('cesiumContainer',{selectionIndicator: false,
+            useBrowserRecommendedResolution:false,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: false, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: false, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider:false,
+            fullscreenButton: true});
+
+        viewer.scene.globe.preloadAncestors = false;
+
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+
+        Cesium.viewer = viewer;
+
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "tdtImg_c",
+            style: "default",
+            format: "tiles",
+            tileMatrixSetID: "c",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        viewer.imageryLayers.add(tiandituImageLayer);
+
+
+
+
+        viewer.camera.setView({
+            destination:Cesium.Cartesian3.fromDegrees(113.46169501307848,34.1432695926291,766.662),
+            orientation:{
+                heading:Cesium.Math.toRadians(23.05106718),
+                pitch:Cesium.Math.toRadians(-51.6764),
+                roll:Cesium.Math.toRadians(0.00257208537)
+            }
+        });
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        startup(Cesium);
+    }
+</script>
+</body>
+</html>

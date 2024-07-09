@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles." />
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles" />
+    <title>电子发光围栏</title>
+    <link rel="stylesheet" href="../Build/style.css" />
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+    <script src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script src="../Build/CustomCesiumSDK.js"></script>
+    <script src="../../../../同事资料/丁宜忠/1.96/custom_cesium/src/ext/QuadtreePrimitiveExt.js"></script>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<body class="sandcastle-loading" data-sandcastle-bucket="bucket-requirejs.html">
+<p1 style="position: absolute;background-color: #eec722">选中模型，生成电子发光围栏效果</p1>
+<button onclick="test()" style="position: absolute;left: 20px;top: 20px;">测试</button>
+<div id="cesiumContainer" class="fullSize"></div>
+<script id="cesium_sandcastle_script">
+    var scene
+    var viewer
+    var entitie
+
+    function startup(Cesium) {
+        'use strict'
+        createMap()
+    }
+
+
+    function test(){
+        // var cap = Cesium.Cartesian3.fromDegrees(109.947146, 40.619721, 1200);
+        // console.log(cap);
+
+        var cap = viewer.camera.positionWC;
+
+        var cs3 = Cesium.Cartesian3.fromDegrees(109.940537, 40.652236, 0);
+        // console.log(cs3);
+        var cs31 = Cesium.Cartesian3.subtract(cs3,cap,new Cesium.Cartesian3());
+
+        // var cs4 = new Cesium.Cartesian4(cs31.x,cs31.y,cs31.z,1.0);
+        var cs4 = new Cesium.Cartesian4(0,0,0,1.0);
+        var result = Cesium.Matrix4.multiplyByVector(scene._frameState.context._us._modelViewRelativeToEye,cs4,new Cesium.Cartesian4());
+
+
+        var  _projection= scene._frameState.context._us._projection;
+        var result1 = Cesium.Matrix4.multiplyByVector(_projection,result,new Cesium.Cartesian4());
+        // console.log(result1);
+
+
+        var _modelViewProjectionRelativeToEye = scene._frameState.context._us._modelViewProjectionRelativeToEye;
+        var result2 = Cesium.Matrix4.multiplyByVector(_modelViewProjectionRelativeToEye,cs4,new Cesium.Cartesian4());
+        var x = ((result2.x/result2.w + 1) *0.5  ) * scene.canvas.clientWidth;
+        var y = ((1 - result2.y/result2.w  ) *0.5)* scene.canvas.clientHeight;
+        console.log(x + ':' + y);
+
+
+
+        var high = new Cesium.Cartesian3(-1638400, 4521984, 4128768);
+        var low = new Cesium.Cartesian3(-14247.818359375, 33332.765625,
+            4432.0703125);
+
+        var czm_encodedCameraPositionMCHigh = new Cesium.Cartesian3(-1638400,4521984,
+            4128768);
+        var czm_encodedCameraPositionMCLow = new Cesium.Cartesian3(-15886.209248749306,
+            36208.710123535246, 2473.296373934485);
+
+
+        var highDifference = Cesium.Cartesian3.subtract(high,czm_encodedCameraPositionMCHigh,new Cesium.Cartesian3());
+        var lowDifference = Cesium.Cartesian3.subtract(low,czm_encodedCameraPositionMCLow,new Cesium.Cartesian3());
+
+        var result3 = Cesium.Cartesian3.add(highDifference,lowDifference,new Cesium.Cartesian3());
+        // console.log(result3);
+
+
+        var c4 = new Cesium.Cartesian4(result3.x,result3.y,result3.z,1.0);
+        var result4 = Cesium.Matrix4.multiplyByVector(_modelViewProjectionRelativeToEye,c4,new Cesium.Cartesian4());
+        // console.log(result4);
+        // return vec4(highDifference + lowDifference, 1.0);
+
+
+        // alert(viewer.camera.getLevel());
+
+    }
+
+    function createMap() {
+        // Cesium.Ion.defaultAccessToken =
+        //     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwMzYzM2JiMi1mZDg0LTRmZmEtODYzNy02YjA2NDZmMmU5YTYiLCJpZCI6MjU5LCJhc3NldHMiOnsiMSI6eyJ0eXBlIjoiVEVSUkFJTiIsImV4dGVuc2lvbnMiOlt0cnVlLHRydWUsdHJ1ZV0sInB1bGxBcGFydFRlcnJhaW4iOmZhbHNlfX0sInNyYyI6ImQ2ZjQ1N2I2LTIxZTQtNDg4Ni05MjhkLTVhM2QyMGY4YmI1YiIsImlhdCI6MTYzNzgzMDg5MSwiZXhwIjoxNjM3ODM0NDkxfQ.bOsm3KagdsGeVlEyzX674qcehlsOpyRzKzdRFq7wzGM'
+
+        viewer = new Cesium.Viewer('cesiumContainer', {
+            selectionIndicator: false,
+            contextOptions: {
+                webgl: {
+                    alpha: true,
+                    depth: true,
+                    stencil: false,
+                    antialias: true,
+                },
+            },
+
+            animation: false, //是否显示动画控件
+            baseLayerPicker: false, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: false, //是否显示时间线控件
+            sceneModePicker: false, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false, //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            fullscreenButton: false,
+        })
+
+        // viewer.scene.globe.depthTestAgainstTerrain = true
+        viewer.scene.primitives.destroyPrimitives = false
+        var imageryLayers = viewer.imageryLayers
+        scene = viewer.scene
+
+
+        //天地图影像图层
+        tiandituImageLayer = new Cesium.ImageryLayer(
+            new Cesium.WebMapTileServiceImageryProvider({
+                url: 'http://{s}.tianditu.gov.cn/img_c/wmts?service=wmts&request=GetTile&version=1.0.0' +
+                    '&LAYER=img&tileMatrixSet=c&TileMatrix={TileMatrix}&TileRow={TileRow}&TileCol={TileCol}' +
+                    '&style=default&format=tiles&tk=440b96d736fad95da7934bc130a2258a',
+                layer: 'tdtImg_c',
+                style: 'default',
+                format: 'tiles',
+                tileMatrixSetID: 'c',
+                subdomains: ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7'],
+                tilingScheme: new Cesium.GeographicTilingScheme(),
+                tileMatrixLabels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',
+                    '17', '18', '19'
+                ],
+                maximumLevel: 18,
+            })
+        )
+        viewer.imageryLayers.add(tiandituImageLayer)
+
+
+        //天地图影像图层
+        var tiandituLabelLayer = new Cesium.ImageryLayer(
+            new Cesium.WebMapTileServiceImageryProvider({
+                url: 'https://t6.tianditu.gov.cn/cva_c/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
+                    '&LAYER=cva&tileMatrixSet=c&TileMatrix={TileMatrix}&TileRow={TileRow}&TileCol={TileCol}' +
+                    '&style=default&format=tiles&tk=440b96d736fad95da7934bc130a2258a',
+                layer: 'tdtImg_c',
+                style: 'default',
+                format: 'tiles',
+                tileMatrixSetID: 'c',
+                subdomains: ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7'],
+                tilingScheme: new Cesium.GeographicTilingScheme(),
+                tileMatrixLabels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',
+                    '17', '18', '19'
+                ],
+                maximumLevel: 18,
+            })
+        )
+        // viewer.imageryLayers.add(tiandituLabelLayer)
+
+        // https://t6.tianditu.gov.cn/cva_c/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=c&FORMAT=tiles&TILECOL=6696&TILEROW=1348&TILEMATRIX=13&tk=75f0434f240669f4a2df6359275146d2
+
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(109.947146, 40.619721, 1200), //设置位置
+            orientation: {
+                heading: Cesium.Math.toRadians(0),
+                pitch: Cesium.Math.toRadians(-20),
+                roll: 0,
+            },
+        })
+       var c3 =  Cesium.Cartesian3.fromDegrees(109.947146, 40.619721, 1200)
+        // const view = Cesium.Matrix4.computeView(origin, z, y, x, scratchViewMatrix);
+        console.log(c3);
+
+
+        //几何图形
+        var polygonInstance = new Cesium.GeometryInstance({
+            id: 1, //给个唯一id，方便被拾取
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                    109.940537, 40.652236,
+                    109.942674, 40.635048,
+                    109.952216, 40.636157,
+                    109.955973, 40.654014
+                ]),
+                vertexFormat: Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
+            }),
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(
+                    Cesium.Color.RED
+                ),
+            },
+        });
+
+        viewer.scene.primitives.add(new Cesium.Primitive({
+            showFS: false,
+            showVS: false,
+            geometryInstances: [polygonInstance],
+            appearance: new Cesium.PerInstanceColorAppearance({
+                translucent: false,
+                closed: true,
+            }),
+        }));
+
+        viewer.screenSpaceEventHandler.setInputAction(function leftClick(movement) {
+            var primitive = viewer.scene.pick(movement.position);
+            if (Cesium.defined(primitive)) {
+                let polygon = [
+                    [
+                        Cesium.Cartesian3.fromDegrees(109.940537, 40.652236),
+                        Cesium.Cartesian3.fromDegrees(109.942674, 40.635048),
+                        Cesium.Cartesian3.fromDegrees(109.952216, 40.636157),
+                        Cesium.Cartesian3.fromDegrees(109.955973, 40.654014),
+                        Cesium.Cartesian3.fromDegrees(109.940537, 40.652236)
+                    ]
+                ];
+                let ridingLantern = Custom.RidingLanternGlowPrimitive.createRidingLantern({
+                    viewer: viewer,
+                    positions: polygon,//[世界坐标集合]
+                    height: 200, //拉伸高度
+                    speed: 150, //扫描速度
+                    type: 1, //扫描类型,1代表上下扫描，-1代表左右扫描
+                    direction: -1, //扫描方向,1，-1代表不同方向
+                    color: new Cesium.Color(0.3, 0.5, 0.8, 2.),
+                    u_tcolor: Cesium.Color.RED,
+                    translucent: false
+                });
+
+                viewer.scene.primitives.add(ridingLantern);
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+
+
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+            var position = event.position;
+            var cartesian =  viewer.scene.pickPosition(position);
+            if (!Cesium.defined(cartesian)) {
+                return;
+            }
+
+
+            var ellipsoid=viewer.scene.globe.ellipsoid;
+            var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            var height=cartographic.height;
+            alert(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    }
+
+
+    if (typeof Cesium !== 'undefined') {
+        startup(Cesium)
+    }
+</script>
+</body>
+
+</html>

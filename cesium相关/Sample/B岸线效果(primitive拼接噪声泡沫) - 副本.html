@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>primitive拼接噪声泡沫</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+    <style>
+        @import url(./CesiumWight.css);
+    </style>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <!-- <button class="btn btn-primary" onclick="waterActive()">显示primitive</button>
+    <button class="btn btn-primary" onclick="NoActive()">隐藏primitive</button> -->
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay">
+    <h1>Loading...</h1>
+</div>
+<div id="toolbar"></div>
+
+<script>
+
+    var viewer;
+    // var waterPrimitive;
+
+    var highPrimitive;
+    var highpolygonInstance;
+    var shazi_Primitive;
+    var polygonInstance;
+    var mWater;
+    var czmFresnel
+    // var timeClock=0.1;
+
+    function startup(Cesium) {
+
+        createMap();
+    }
+
+
+
+    function updateHeight(waterPrimitive, scale, center) {
+        var cc = Cesium.Cartesian3.fromDegrees(center[0], center[1], 0);
+        let m = Cesium.Transforms.eastNorthUpToFixedFrame(cc);
+        let inverse = Cesium.Matrix4.inverse(m, new Cesium.Matrix4);
+
+        let mScale = Cesium.Matrix4.fromScale(new Cesium.Cartesian3(1.0, 1.0, scale));
+        let tt = Cesium.Matrix4.multiply(mScale, inverse, new Cesium.Matrix4);
+        waterPrimitive.modelMatrix = Cesium.Matrix4.multiply(m, tt, new Cesium.Matrix4);
+    }
+
+    function createMap() {
+        let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+            url:'http://data.mars3d.cn/terrain'
+
+        });
+        viewer = new Cesium.Viewer('cesiumContainer', {
+            selectionIndicator: false,
+            terrainProvider: cesiumTerrainProvider,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: true, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: true, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            vrButton: true,
+            useBrowserRecommendedResolution: false,
+            fullscreenButton: true
+        });
+        
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.preloadAncestors = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+        var scene = viewer.scene;
+        imageryLayers.removeAll();
+
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "",
+            style: "",
+            format: "",
+            tileMatrixSetID: "",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+          viewer.imageryLayers.add(tiandituImageLayer);
+
+       
+
+        var waterMaterial = new Cesium.Material({
+            fabric: {
+                type: 'Water',
+                uniforms: {
+                    normalMap: '../image/water.jpg',
+                    frequency: 1000.0,
+                    animationSpeed: 0.1,
+                    amplitude: 4.0
+                }
+            }
+        });
+        $.getJSON("../data/河面测试数据.json",function(result){
+           let arr = []
+           result.features.forEach(item=>{
+             if(item&&item.geometry.coordinates){
+              item.geometry.coordinates.forEach(obj=>{
+                obj.forEach(data=>{
+                  if(Number(data[0])>0&&Number(data[1])>0){
+                    arr.push(Number(data[0]),Number(data[1]))
+                  }
+                })
+             })
+             }
+           })
+
+        //    alert(arr);
+        });
+       polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.656956,28.435408,
+                119.547393,28.320867,
+                119.460955,28.376718,
+                119.434327,28.398790,
+                119.493536,28.482427,
+                119.528221,28.521390
+                   
+
+                ]),
+                height:485,
+                extrudedHeight: 485,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.ANTIQUEWHITE)
+            }
+        });
+       
+
+        var features = turf.featureCollection([
+        turf.point( [119.656956,28.435408]),
+        turf.point( [119.547393,28.320867]),  
+        turf.point( [119.460955,28.376718]),
+        turf.point( [119.434327,28.398790]),
+        turf.point( [119.493536,28.482427]),
+        turf.point( [119.528221,28.521390])
+        ]);
+
+        var center = turf.center(features);
+        var position= new Cesium.Cartographic(Cesium.Math.toRadians(center.geometry.coordinates[1]),Cesium.Math.toRadians(center.geometry.coordinates[0]),485);
+        var ellipsoid=viewer.scene.globe.ellipsoid;
+        var cartesianPosition=Cesium.Cartesian3.fromDegrees(center.geometry.coordinates[1],center.geometry.coordinates[0],485);
+        console.log(cartesianPosition);
+
+        polygonInstance11 = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.460955,28.376718,
+                119.564814,28.498990,
+                119.479623,28.550973,
+                119.383811,28.439550
+                   
+
+                ]),
+                height:485,
+                extrudedHeight: 485,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.ANTIQUEWHITE)
+            }
+        });
+       
+
+        highpolygonInstance= new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.932028,28.188356,
+                119.275988,27.894984,
+                119.119987,28.403159,
+                119.546695,28.543999,
+              
+                    
+
+                   
+
+                ]),
+                height: 1055,
+                extrudedHeight: 1055,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000'))
+            }
+        });
+
+        var shazi_polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.491133,28.285150,
+                119.452775,28.246126,
+                119.340569,28.332514,
+                119.293163,28.278900,
+                119.261811,28.308954,
+                119.340968,28.370506,
+                ]),
+                height: 140,
+                extrudedHeight: 125,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+        });
+
+
+
+ 
+   
+
+
+    highPrimitive= new Cesium.Primitive({
+            // show: false,
+            geometryInstances: [highpolygonInstance],
+            undisplayable: true,
+            appearance: new Cesium.PerInstanceColorAppearance({
+            translucent: false,
+            closed: true,
+        })
+        });   
+        // viewer.scene.primitives.add(highPrimitive);
+
+
+        const czm_WaterVS=  `
+        attribute vec3 position3DHigh;
+        attribute vec3 position3DLow;
+
+        attribute vec3 normal;
+        attribute vec3 tangent;
+        attribute vec3 bitangent;
+        attribute vec2 st;
+        attribute float batchId;
+
+        varying vec3 v_positionEC;
+        varying vec3 v_normalEC;
+        varying vec3 v_tangentEC;
+        varying vec3 v_bitangentEC;
+        varying vec2 v_st;
+        varying vec3 deltaVector;
+        varying float deltaCosine;
+
+        void main()
+        {
+
+
+            vec3 Wpc=position3DHigh+position3DLow;
+            vec4 Epc = czm_view * vec4(Wpc,1.0);
+            v_positionEC = Epc.xyz;      // position in eye coordinates
+            v_normalEC = czm_normal * normal;                         // normal in eye coordinates
+            v_tangentEC = czm_normal * tangent;                       // tangent in eye coordinates
+            v_bitangentEC = czm_normal * bitangent;                   // bitangent in eye coordinates
+            v_st = st;
+            vec4 Cpc=czm_projection * Epc;
+
+
+            vec3 ck1=vec3(-6224757.304878687,-6224757.304878687,1041538.6518945738);
+            vec3 ck=vec3(-2767360.5998670473,4882953.423225076,3020545.705522286);
+            deltaVector=normalize(Wpc-ck);
+            //纹理是正东方向(模型坐标)
+            // vec4 bb=vec4(vec3(1.,0.,0.),1.0);
+            // vec4 cc=czm_inverseModel*vec4(-deltaVector,1.0);
+   
+            //纹理是右下方向(模型坐标)
+            vec4 bb=vec4(vec3(1.,1.,-1.),1.0);
+            vec4 cc=czm_inverseModel*vec4(deltaVector,1.0);
+
+
+            deltaCosine=dot(cc.xyz,bb.xyz);
+            gl_Position = Cpc;
+
+
+        }   
+            `;
+
+        const czm_ExtraFS=`
+        uniform vec4 WaterColor;
+        uniform sampler2D WaveImage;
+        uniform sampler2D FoamImage;
+        uniform vec2 RepeatX;
+        uniform sampler2D FoamGradientImage;
+        uniform sampler2D FoamNoiseImage;        
+        float noise(vec2 p){
+
+            mat2 m2 = mat2(0.8,0.6, -0.6,  0.8);
+            float res=0.;
+            float f=1.;
+            for( int i=0; i< 3; i++ ) 
+            {		
+                p=m2*p*f+.6;     
+                f*=1.2;
+                res+=sin(p.x+sin(2.*p.y));
+            }        	
+            return res/3.;
+        }
+
+        float sea( vec2 p ) 
+        {
+            float f=1.;   
+            float r = 0.0;	
+            for(int i = 0;i<8;i++){	
+                r += (1.-abs(noise( p*f +.9*czm_frameNumber)))/f;       
+                f *=2.;
+                p-=vec2(-.01,.04)*(r-.2*czm_frameNumber/(.1-f));
+            }
+            return r/4.+.5;
+        }
+        vec3 normalSea(in vec2 p)
+        {
+            const vec2 e = vec2(0.002, 0.0);
+            return normalize(vec3(
+                sea(p + e.xy) - sea(p - e.xy),
+                .004,
+                sea(p + e.yx) - sea(p - e.yx)
+                ));
+        }
+
+
+
+        float  getInterval(float _interval)
+        {
+            float time = czm_frameNumber;
+            //间隔速度，值越大，间隔时间越长；值越小，间隔时间越大；
+            float cycle = mod(time, _interval)/_interval;   
+            return cycle;
+        }
+
+        float getMixValue(float cycle, inout float offset1, inout float offset2)
+        {
+
+            float mixval = cycle * 2.0;
+            if(mixval > 1.0) mixval = 2.0 - mixval;
+            offset1 = cycle;
+            offset2 = mod(offset1 + .5, 1.0);
+            return mixval;
+        }
+        vec4  PIE_czm_windowToEyeCoordinates(vec2 fragmentCoordinateXY, float depthOrLogDepth)
+        {
+        
+            float near = czm_currentFrustum.x;
+            float far= czm_currentFrustum.y;
+            float log2Depth = depthOrLogDepth * czm_log2FarDepthFromNearPlusOne;
+            float depthFromNear = pow(2.0, log2Depth) - 1.0;
+            float depthFromCamera = depthFromNear + near;       
+            vec4 windowCoord = vec4(fragmentCoordinateXY, far * (1.0 - near / depthFromCamera) / (far - near), 1.0);
+            vec4 eyeCoordinate = czm_windowToEyeCoordinates(windowCoord);
+            eyeCoordinate.w = 1.0 / depthFromCamera; 
+            return eyeCoordinate;
+        }
+
+        vec3 getBumpnormaCross(vec2 st)
+        {
+            //水波时间
+            float timeInterval=80.;
+            float _WaveXSpeed=-0.1;
+            float _WaveYSpeed=-0.111;  
+            
+            float o1, o2 = 0.;
+            float cycle = mod(czm_frameNumber, timeInterval)/timeInterval;
+            float mv = getMixValue(cycle, o1, o2);
+            float _time=getInterval(timeInterval);
+         
+            //往上流
+            vec2 shang_speed = _time* vec2(_WaveXSpeed, -_WaveYSpeed);
+            //往下流x
+            vec2 xia_speed =vec2(_WaveXSpeed, _WaveYSpeed);
+            vec2 xia_speed1 =vec2(-_WaveXSpeed, _WaveYSpeed);
+             //往左流
+            vec2 zuo_speed = _time* vec2(_WaveXSpeed, _WaveYSpeed);    
+              //往右流
+            vec2 you_speed = _time* vec2(-_WaveXSpeed, -_WaveYSpeed);
+            vec3 bump1 = normalize(texture2D(WaveImage, fract(RepeatX*st))).rgb; 
+            vec3 bump2 = normalize(texture2D(WaveImage, fract(RepeatX*st+o1*xia_speed1))).rgb; 
+            //叉乘得到法线分量
+            vec3 bumpnormaCross1 = normalize(cross(bump1, bump2));
+            vec3 bump3 = normalize(texture2D(WaveImage, fract(RepeatX*st))).rgb; 
+            vec3 bump4 = normalize(texture2D(WaveImage, fract(RepeatX*st+o2*xia_speed1))).rgb; 
+            //叉乘得到法线分量分量
+            vec3 bumpnormaCross2 = normalize(cross(bump3, bump4));
+            // //得到新的分量,保证水流连续
+            vec3 bumpnormaCross=normalize(mix(bumpnormaCross2, bumpnormaCross1, mv));
+    
+            return bumpnormaCross;
+        }
+        vec3  getWaterColor()
+        {
+            return WaterColor.xyz;
+        }
+        vec4  getWaveNoise(vec2 st)
+        {
+            vec4 WaveNoise= texture2D(FoamNoiseImage,st);
+            return WaveNoise;
+        }
+        vec3  getWaveColor(float waveFactor,vec2 st)
+        {
+            float o1, o2 = 0.;
+            float cycle = mod(czm_frameNumber, 200.)/200.;
+            float mv = getMixValue(cycle, o1, o2);
+            float _time=getInterval(800.);
+            vec4 waveNoiseColor= getWaveNoise(st);
+            vec3 WaveNoise= texture2D(FoamGradientImage,vec2(waveFactor+sin(_time+noise(st)),1.0)).rgb;
+            vec3 WaveNoise2= texture2D(FoamGradientImage,vec2(waveFactor+sin(_time+0.9+noise(st)),1.0)).rgb;
+            vec3 WaveNoise3= texture2D(FoamGradientImage,vec2(waveFactor+sin(_time+0.4+noise(st)),1.0)).rgb;
+
+            
+            WaveNoise*=(sin(_time+waveNoiseColor.r+1.)/2.)*waveNoiseColor.r*2.0;
+            WaveNoise2*=(sin(_time+0.9+waveNoiseColor.r+1.)/2.)*waveNoiseColor.r*2.0;
+            WaveNoise3*=(sin(_time+0.4+waveNoiseColor.r+1.)/2.)*waveNoiseColor.r*2.0;
+            
+            return mix(mix(WaveNoise,WaveNoise2,mv),WaveNoise3,mv)*vec3(1.9);
+        }
+        //泡沫动起来
+        vec3  getPaoMaoColor(float waveFactor,vec2 st)
+        {
+            float o1, o2 = 0.;
+            float cycle = mod(czm_frameNumber, 200.)/200.;
+            float mv = getMixValue(cycle, o1, o2);
+            float _time=getInterval(400.);
+            vec3 WaveNoise= texture2D(FoamImage,fract(vec2(waveFactor+_time,1.0)*vec2(0.05,30.0))).rgb;
+            return WaveNoise;
+        }
+        float getDeltaDepth(vec3 PositonEC)
+        {
+            vec4 posWC = czm_eyeToWindowCoordinates(vec4(PositonEC,1.0));
+            float depth = czm_unpackDepth(texture2D(czm_globeDepthTexture, posWC.xy / czm_viewport.zw)); 
+            vec4 eyeCoordinate = PIE_czm_windowToEyeCoordinates(posWC.xy, depth);
+            float GlobeDepth=-eyeCoordinate.z / eyeCoordinate.w;
+            float deltaDepth=(GlobeDepth-length(PositonEC.z))*0.1;
+            return deltaDepth;
+        }
+
+        vec4  getFormColor(float waveFactor,vec2 st)
+        {
+            float _WaveXSpeed=1.;
+            float _WaveYSpeed=1.; 
+            vec2 xia_speed1 =vec2(_WaveXSpeed, _WaveYSpeed); 
+            float timeInterval=2000.;
+            float o1, o2 = 0.;
+            float cycle = mod(czm_frameNumber, timeInterval)/timeInterval;
+            float mv = getMixValue(cycle, o1, o2);
+            vec4 foamGradient1=texture2D(FoamImage,fract(vec2(1)*st+o1*xia_speed1));  
+            vec4 foamGradient2=texture2D(FoamImage, fract(vec2(1.)*st+o2*xia_speed1)); 
+            vec4 foamGradient=mix(foamGradient1,foamGradient2,mv);
+            return foamGradient*1.5;
+
+        }
+
+
+        float random (in vec2 st) {
+    return fract(sin(dot(st.xy,
+                        vec2(12.9898,78.233)))*
+        43758.5453123);
+}
+// 2D Perlin Noise function
+float noise2D(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    
+    // Smoothstep插值
+    f = f*f*(3.0-2.0*f);
+
+    float a = random(i);
+    float b = random(i + vec2(1.0, 0.0));
+    float c = random(i + vec2(0.0, 1.0));
+    float d = random(i + vec2(1.0, 1.0));
+    
+    float x1 = mix(a, b, f.x);
+    float x2 = mix(c, d, f.x);
+
+    return mix(x1, x2, f.y);
+}
+
+// 3D Fractal Brownian Motion (FBM)
+float fbm(vec3 p, int numLayers) {
+    float value = 0.0;
+    float amplitude = 1.0;
+
+    for (int i = 0; i < 15; i++) {
+        value += amplitude * noise2D(p.xy);
+        p.xy *= 2.0;
+        amplitude *= 0.5;
+    }
+
+    return value;
+}
+float hash( const in float n ) {
+            return fract(sin(n)*4378.5453);
+        }
+vec3 noise_dxy(in vec2 o) 
+    {
+        vec2 p = floor(o);
+        vec2 f = fract(o);
+            
+        float n = p.x + p.y*57.0;
+
+        float a = hash(n+  0.0);
+        float b = hash(n+  1.0);
+        float c = hash(n+ 57.0);
+        float d = hash(n+ 58.0);
+        
+        vec2 f2 = f * f;
+        vec2 f3 = f2 * f;
+        
+        vec2 t = 3.0 * f2 - 2.0 * f3;
+        vec2 dt = 6.0 * f - 6.0 * f2;
+        
+        float u = t.x;
+        float du = dt.x;	
+        float v = t.y;
+        float dv = dt.y;	
+
+        float res = a + (b-a)*u +(c-a)*v + (a-b+d-c)*u*v;
+        
+        float dx = (b-a)*du + (a-b+d-c)*du*v;
+        float dy = (c-a)*dv + (a-b+d-c)*u*dv;
+        
+        return vec3(dx, dy, res);
+    }
+    vec3 fbm_dxy( vec2 p, vec2 d,float para ) {
+        vec3 f;
+        p += d * 1.0;
+        f  =      0.5000*noise_dxy( p );
+        p = p * 2.0;
+        p += d * 1.0;
+        p += f.xy * 0.75;
+        f +=      0.2500*noise_dxy( p);
+        p = p * 2.0;
+        p += d * 1.0;
+        p += f.xy * 0.75;
+        f +=      0.1250*noise_dxy( p );	
+        
+        return f * (1.0/para);
+    }
+
+    float getTargetFbm(vec2 st,float time1,float para)
+    {
+        vec2 speed= vec2(0.0, czm_frameNumber/10000.) * 2.0;
+      
+        vec3 vWaterFBM = fbm_dxy(st, speed,para);
+        float fFoam = sqrt(1.-vWaterFBM.z);
+        // 生成FBM噪声
+        float time = mod(czm_frameNumber, 10000.0);
+        vec3 p = vec3(st*20.+vec2(0.,0.), time);
+        float foamIntensity = 1.; // 调整泡沫强度
+        float noise = foamIntensity * fbm(p, 15); 
+
+        fFoam -= clamp(noise* 0.6, 0., 1.);
+        fFoam = clamp(fFoam, 0.0, 1.0);
+        return fFoam;
+
+    }
+
+
+        `;    
+        const czm_WateFS=  `
+            
+        varying vec3 v_positionEC;
+        varying vec3 v_normalEC;
+        varying vec3 v_tangentEC;
+        varying vec3 v_bitangentEC;
+        varying vec2 v_st;
+        varying vec3 deltaVector;
+        varying float deltaCosine;
+        void main()
+        {
+          
+            vec3 waterColor= getWaterColor();
+            vec3 positionToEyeEC = -v_positionEC;
+            float deltaDepth=getDeltaDepth(positionToEyeEC);
+            
+            mat3 tangentToEyeMatrix = czm_tangentToEyeSpaceMatrix(v_normalEC, v_tangentEC, v_bitangentEC);
+
+            vec3 normalEC = normalize(v_normalEC);
+
+
+
+            czm_materialInput materialInput;
+            materialInput.normalEC = normalEC;
+            materialInput.tangentToEyeMatrix = tangentToEyeMatrix;
+            materialInput.positionToEyeEC = positionToEyeEC;
+            materialInput.st = v_st;
+
+
+             
+            czm_material material = czm_getDefaultMaterial(materialInput);
+            
+            vec3 bumpCross=getBumpnormaCross(v_st);
+           
+            float specularFactor = czm_getSpecular(czm_lightDirectionEC, bumpCross,normalize(positionToEyeEC),2.1);
+
+            float DepthRange=70.;
+            float mixFactor=min(DepthRange,deltaDepth)/DepthRange;
+            //根据深度控制是否有波浪,让波浪出现在近岸。deltaDepth>=_WaveRangeA时无波
+            float waveFactor=mixFactor;
+            //浪花颜色
+            vec3 waveColor=getWaveColor(waveFactor,v_st);
+            //岸线颜色(暂时直接用水的颜色)
+            vec4 foramColor=getFormColor(waveFactor,v_st);
+            //浪花颜色和岸线颜色混合
+            vec3 mixwaveColor=mix(waveColor,foramColor.xyz,0.3);
+            //最后与整体流动水颜色混合(这样浅水就有浪花,渐进到深水处,最终超过8米深水后全部是流动水的颜色)
+            vec3  mixColor=vec3(1.0);
+            
+
+            float PaomaoFactor=0.;
+            float alphaPara=0.;
+            if(mixFactor<0.4)
+            {
+                float PaomaoRange=0.4;
+                PaomaoFactor=min(PaomaoRange,mixFactor)/PaomaoRange;
+                vec3 PaomaoColor=getPaoMaoColor(PaomaoFactor,v_st);
+
+
+
+
+                vec3 waveColor11=getWaveColor(PaomaoFactor,v_st);
+                float _time=getInterval(800.);
+                vec3 foamColor11 = vec3(0.9216, 0.9451, 0.6824); // 白色泡沫
+                // 混合水面颜色和泡沫颜色
+                vec3 waterColor11 = vec3(0.2863, 0.5373, 0.4902);
+                vec2 uv11=v_st*35.;
+                float time = mod(czm_frameNumber, 1000.0);
+                uv11.x+=time*0.001;
+
+                
+            
+                float multiPara=0.975;
+                float lessPara=0.555;
+
+                float targetAlpha11=getTargetFbm(uv11,time,multiPara*(1.-0.7*PaomaoFactor));
+                alphaPara=targetAlpha11;
+                mixColor = mix(waterColor11, foamColor11,targetAlpha11);
+   
+        
+            }
+                
+            else
+            {
+                vec3 foamColor11 = vec3(0.9216, 0.9451, 0.6824); // 白色泡沫
+                // 混合水面颜色和泡沫颜色
+                vec3 waterColor11 = vec3(0.2863, 0.5373, 0.4902);
+                //泡沫多和少的参数
+                float multiPara=0.875;
+                float lessPara=0.555;
+
+                vec2 uv11=v_st*5.;
+                vec2 uv22=v_st*5.;
+                //周期函数,控制泡沫流动是连续的
+                float timeInterval=1260.;
+                float o1, o2 = 0.;
+                float cycle = mod(czm_frameNumber, timeInterval)/timeInterval;
+                float mv = getMixValue(cycle, o1, o2);
+
+
+                vec2 foramDir11=1.-o1*vec2(-1.,1.);
+                vec2 foramDir22=1.-o2*vec2(-1.,1.);
+                uv11+=foramDir11;
+                uv22+=foramDir22;  
+    
+
+                float targetAlpha11=getTargetFbm(uv11,0.,multiPara);
+                float targetAlpha22=getTargetFbm(uv22,0.,multiPara);
+                //周期函数,控制泡沫流动是连续的
+                float targetAlpha33=mix(targetAlpha22,targetAlpha11,mv);
+
+                alphaPara=0.12+targetAlpha33;
+        
+       
+
+            }
+            // if(alphaPara<0.3) 
+            // {
+            //     material.diffuse=vec3(0.2863, 0.5373, 0.4902);
+            //     material.normal=normalize(tangentToEyeMatrix * bumpCross); 
+            //     material.specular=specularFactor;
+
+            // }
+            // else
+            // {
+            
+            //     // vec4 foramColor=getFormColor(0.1,v_st);
+            //     // material.diffuse=foramColor.xyz;
+
+
+            //     vec3 foamColor111 = vec3(0.9216, 0.9451, 0.6824); // 白色泡沫
+            //     material.diffuse=foamColor111; 
+             
+        
+            // }
+            //primitive融合
+            // material.alpha=clamp((0.95-deltaCosine),0.05,1.);
+
+            vec4 foramColor1=getFormColor(0.1,v_st);
+            // material.diffuse=mix(vec3(1.0),foramColor1.xyz,0.5);
+            material.diffuse=vec3(deltaCosine-0.05);
+        
+            // material.alpha=deltaCosine-0.1;
+            gl_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
+
+   
+        }
+    `;
+   
+    var waterPrimitive= new Cesium.Primitive({
+            geometryInstances: [polygonInstance],
+            appearance: new Cesium.MaterialAppearance({
+                material:new Cesium.Material({
+                    translucent:this.translucent,
+                    fabric:{
+                        uniforms:{
+                            WaveImage: "../image/Waves_N.png",
+                            RepeatX:new Cesium.Cartesian2(4,4),
+                            WaterColor:new Cesium.Color(0.5411765,0.5647059,0.5294118,1.0),
+                            FoamImage:"../image/pmo5.jpg",//浪花纹理
+                            FoamGradientImage:"../image/Gradient.png",//浪花梯度
+                            FoamNoiseImage:"../image/iChannel5.png" ,//浪花噪声
+                            FoamMixImage:"../image/FlowWater.png",//浪花纹理
+                            cankaoPoint:new Cesium.Cartesian3(4,4),
+                           
+                        },
+                        source:czm_ExtraFS
+                    }
+                }),
+                fragmentShaderSource:czm_WateFS,
+                vertexShaderSource:czm_WaterVS,
+                
+            }),
+            asynchronous:false,
+        });
+
+         viewer.scene.primitives.add(waterPrimitive);
+
+
+
+        const czm_WateFS11=  `
+            
+        varying vec3 v_positionEC;
+        varying vec3 v_normalEC;
+        varying vec3 v_tangentEC;
+        varying vec3 v_bitangentEC;
+        varying vec2 v_st;
+        varying vec3 deltaVector;
+        varying float deltaCosine;
+        void main()
+        {
+          
+            vec3 waterColor= getWaterColor();
+            vec3 positionToEyeEC = -v_positionEC;
+            float deltaDepth=getDeltaDepth(positionToEyeEC);
+            
+            mat3 tangentToEyeMatrix = czm_tangentToEyeSpaceMatrix(v_normalEC, v_tangentEC, v_bitangentEC);
+
+            vec3 normalEC = normalize(v_normalEC);
+
+
+
+            czm_materialInput materialInput;
+            materialInput.normalEC = normalEC;
+            materialInput.tangentToEyeMatrix = tangentToEyeMatrix;
+            materialInput.positionToEyeEC = positionToEyeEC;
+            materialInput.st = v_st;
+
+
+             
+            czm_material material = czm_getDefaultMaterial(materialInput);
+            
+            vec3 bumpCross=getBumpnormaCross(v_st);
+           
+            float specularFactor = czm_getSpecular(czm_lightDirectionEC, bumpCross,normalize(positionToEyeEC),2.1);
+
+            float DepthRange=70.;
+            float mixFactor=min(DepthRange,deltaDepth)/DepthRange;
+            //根据深度控制是否有波浪,让波浪出现在近岸。deltaDepth>=_WaveRangeA时无波
+            float waveFactor=mixFactor;
+            //浪花颜色
+            vec3 waveColor=getWaveColor(waveFactor,v_st);
+            //岸线颜色(暂时直接用水的颜色)
+            vec4 foramColor=getFormColor(waveFactor,v_st);
+            //浪花颜色和岸线颜色混合
+            vec3 mixwaveColor=mix(waveColor,foramColor.xyz,0.3);
+            //最后与整体流动水颜色混合(这样浅水就有浪花,渐进到深水处,最终超过8米深水后全部是流动水的颜色)
+            vec3  mixColor=vec3(1.0);
+            vec3 foamColor11 = vec3(0.9216, 0.9451, 0.6824)*1.6; // 白色泡沫
+                // 混合水面颜色和泡沫颜色
+                vec3 waterColor11 = vec3(0.2863, 0.5373, 0.4902);
+
+            float PaomaoFactor=0.;
+            vec3  whiteWaveColor=vec3(0.);
+            if(mixFactor<0.4)
+            {
+                float PaomaoRange=0.4;
+                PaomaoFactor=min(PaomaoRange,mixFactor)/PaomaoRange;
+                vec3 PaomaoColor=getPaoMaoColor(PaomaoFactor,v_st);
+
+                // float foamPara=log2(getWaterFBM(v_st*1000.,deltaDepth));
+                // foamPara=clamp(foamPara,-1.,0.);
+                // foamPara+=1.0;
+                // vec3 vFoamCol = vec3(0.5, 0.45, 0.4);
+
+
+                vec3 waveColor11=getWaveColor(PaomaoFactor,v_st);
+                float _time=getInterval(800.);
+                vec3 foamColor11 = vec3(0.9216, 0.9451, 0.6824)*2.8; // 白色泡沫
+                // 混合水面颜色和泡沫颜色
+                vec3 waterColor11 = vec3(0.2863, 0.5373, 0.4902);
+                vec2 uv11=v_st*35.;
+                float time = mod(czm_frameNumber, 1000.0);
+                uv11.x+=time*0.001;
+
+                
+            
+                float multiPara=0.975;
+                float lessPara=0.555;
+
+                float targetAlpha11=getTargetFbm(uv11,time,multiPara*(1.-0.7*PaomaoFactor));
+                mixColor = mix(waterColor11, foamColor11,targetAlpha11);
+                // mixColor=vec3(waveColor11.r);
+                // mixColor=mixColor
+                // mixColor=vec3(1.-1.*PaomaoFactor,1.,0.);
+        
+            }
+                
+            else
+            {
+         
+                vec2 uv11=v_st*5.;
+                float time = mod(czm_frameNumber, 200.0);
+                uv11+=vec2(time*0.001,-time*0.001);
+                float multiPara=0.875;
+                float lessPara=0.555;
+
+                float targetAlpha11=getTargetFbm(uv11,0.,multiPara);
+                whiteWaveColor = mix(waterColor11, foamColor11, 0.1+targetAlpha11);
+                // mixColor=mix(vec3(0.1,0.3,0.2), vec3(1.0), foamPara);
+
+            }
+             
+      
+
+           
+            float a = pow( 1. + -1. * abs(dot(normalEC, normalize(positionToEyeEC*1.5))),2.0);
+            float temp=abs(dot(normalEC, normalize(positionToEyeEC*1.5)));
+
+            float cosdelta=dot(vec3(1.,0.,0.),deltaVector);
+
+
+            material.diffuse=vec3(0.,0.,0.5);
+            // material.alpha=0.95-deltaCosine;
+
+            // material.alpha=pow(1.3-temp,2.3);
+
+            //   material.alpha=clamp(0.95-deltaCosine,0.,1.);
+        
+            //   material.normal=normalize(tangentToEyeMatrix * bumpCross); 
+            // //浅处只有浪花泡沫，没有波浪
+            // if(mixFactor>0.9)
+            // {
+            //    material.specular=specularFactor;
+            // }
+            // // material.shininess=10.;
+            // if(mixFactor<0.13&&mixFactor>0.07)
+            //     material.alpha=PaomaoFactor;
+            // else
+            //     //保证水最低应有0.5的透明度
+            //     material.alpha=0.85+(1.-mixFactor);  
+            // // gl_FragColor=vec4(normalize(tangentToEyeMatrix * bumpCross),1.0);
+            
+
+            gl_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
+   
+        }
+    `;
+
+
+         var waterPrimitive11= new Cesium.Primitive({
+            geometryInstances: [polygonInstance11],
+            appearance: new Cesium.MaterialAppearance({
+                material:new Cesium.Material({
+                    translucent:this.translucent,
+                    fabric:{
+                        uniforms:{
+                            WaveImage: "../image/Waves_N.png",
+                            RepeatX:new Cesium.Cartesian2(4,4),
+                            WaterColor:new Cesium.Color(0.5411765,0.5647059,0.5294118,1.0),
+                            FoamImage:"../image/pmo4.png",//浪花纹理
+                            FoamGradientImage:"../image/Gradient.png",//浪花梯度
+                            FoamNoiseImage:"../image/iChannel5.png" ,//浪花噪声
+                            FoamMixImage:"../image/FlowWater.png",//浪花纹理
+                           
+                        },
+                        source:czm_ExtraFS
+                    }
+                }),
+                fragmentShaderSource:czm_WateFS11,
+                vertexShaderSource:czm_WaterVS,
+                
+            }),
+            asynchronous:false,
+        });
+
+        //  viewer.scene.primitives.add(waterPrimitive11);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+    //   viewer.clock.currentTime = Cesium.JulianDate.addHours(Cesium.JulianDate.now(new Date()),5, new Cesium.JulianDate());
+
+        viewer.scene.postProcessStages._fxaa.enabled = true;    
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(119.66377995364743,28.42880378427581,80184.99650637122),//设置位置
+            orientation: {  
+                heading: Cesium.Math.toRadians(0),
+                pitch: Cesium.Math.toRadians(-90),
+            }
+        });
+
+
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+            // var position = event.position;
+            // var cartesian =  viewer.scene.pickPosition(position);
+            // if (!Cesium.defined(cartesian)) {
+            //     return;
+            // }
+            // var ellipsoid=viewer.scene.globe.ellipsoid;
+            // var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            // var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            // var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            // var height=cartographic.height;
+            // console.log(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+            // // console.log(cartesian)
+
+
+
+             let camera = Cesium.camera;
+    let cartographic =  camera.positionCartographic;
+    let lon =  Cesium.Math.toDegrees(cartographic.longitude);
+    let lat = Cesium.Math.toDegrees(cartographic.latitude);
+    console.log('经纬度 : [' + lon+','+lat+']');
+    console.log('地图高度 : '+ cartographic.height);
+    console.log('heading :'+ Cesium.Math.toDegrees(camera.heading));
+    console.log('pitch :'+ Cesium.Math.toDegrees(camera.pitch));
+    console.log('roll :'+ Cesium.Math.toDegrees(camera.roll));
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        // TimeClock()
+        startup(Cesium);
+    }
+</script>
+</body>
+
+</html>

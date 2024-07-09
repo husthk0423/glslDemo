@@ -1,0 +1,19 @@
+{
+  "name": "shadertest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "express": "^4.17.2",
+    "request": "^2.88.2",
+    "sponsors": "^0.2.0",
+    "yargs": "^17.3.1"
+  }
+}

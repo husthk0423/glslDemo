@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>狭窄的河面.</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+    <style>
+        @import url(./CesiumWight.css);
+    </style>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <!-- <button class="btn btn-primary" onclick="waterActive()">显示primitive</button>
+    <button class="btn btn-primary" onclick="NoActive()">隐藏primitive</button> -->
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay">
+    <h1>Loading...</h1>
+</div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    // var waterPrimitive;
+
+    var highPrimitive;
+    var highpolygonInstance;
+    var shazi_Primitive;
+    var polygonInstance;
+    var mWater;
+    var czmFresnel
+    // var timeClock=0.1;
+    function NoActive()
+    {
+        waterPrimitive.show = false;
+    }
+    function waterActive() {
+        flood(viewer,polygonInstance,mWater)
+    }
+    function startup(Cesium) {
+        createMap();
+    }
+
+    
+    function test(viewer){
+     
+        var cs3 = Cesium.Cartesian3.fromDegrees(109.940537, 40.652236, 0);
+
+        var cap = viewer.camera.positionWC;
+        var cs31 = Cesium.Cartesian3.subtract(cs3,cap,new Cesium.Cartesian3());
+        var cs4 = new Cesium.Cartesian4(cs31.x,cs31.y,cs31.z,1.0);
+        var  _projection= scene._frameState.context._us._projection;
+        var result1 = Cesium.Matrix4.multiplyByVector(_projection,result,new Cesium.Cartesian4());
+        var _modelViewProjectionRelativeToEye = viewer.scene._frameState.context._us._modelViewProjectionRelativeToEye;
+        var result2 = Cesium.Matrix4.multiplyByVector(_modelViewProjectionRelativeToEye,cs4,new Cesium.Cartesian4());
+        var x = ((result2.x/result2.w + 1) *0.5  ) * scene.canvas.clientWidth;
+        var y = ((1 - result2.y/result2.w  ) *0.5)* scene.canvas.clientHeight;
+        let  targetXY=new Cesium.Cartesian2(x,y);
+        return targetXY;
+
+    }
+
+    function updateHeight(waterPrimitive, scale, center) {
+        var cc = Cesium.Cartesian3.fromDegrees(center[0], center[1], 0);
+        let m = Cesium.Transforms.eastNorthUpToFixedFrame(cc);
+        let inverse = Cesium.Matrix4.inverse(m, new Cesium.Matrix4);
+
+        let mScale = Cesium.Matrix4.fromScale(new Cesium.Cartesian3(1.0, 1.0, scale));
+        let tt = Cesium.Matrix4.multiply(mScale, inverse, new Cesium.Matrix4);
+        waterPrimitive.modelMatrix = Cesium.Matrix4.multiply(m, tt, new Cesium.Matrix4);
+    }
+
+    function createMap() {
+        let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+            url:'http://data.mars3d.cn/terrain'
+
+        });
+        viewer = new Cesium.Viewer('cesiumContainer', {
+            selectionIndicator: false,
+            terrainProvider: cesiumTerrainProvider,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: true, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: true, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            vrButton: true,
+            useBrowserRecommendedResolution: false,
+            fullscreenButton: true
+        });
+        
+        viewer.scene.primitives.destroyPrimitives = false;
+        // viewer.scene.globe.preloadAncestors = true;
+        // viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+        var scene = viewer.scene;
+        imageryLayers.removeAll();
+
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "",
+            style: "",
+            format: "",
+            tileMatrixSetID: "",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        viewer.imageryLayers.add(tiandituImageLayer);
+
+
+
+        var waterMaterial = new Cesium.Material({
+            fabric: {
+                type: 'Water',
+                uniforms: {
+                    normalMap: '../image/water.jpg',
+                    frequency: 1000.0,
+                    animationSpeed: 0.1,
+                    amplitude: 4.0
+                }
+            }
+        });
+        $.getJSON("../data/wlh.json",function(result){
+           let arr = []
+          //alert(result.features[0].geometry.rings[0][0]);
+          if(result.features[0].geometry.rings[0]){
+            result.features[0].geometry.rings[0].forEach(
+                obj=>{
+
+                    // let arrCoordinate = []
+                    // arrCoordinate[0]=Number(obj[0]);
+                    // arrCoordinate[1]=Number(obj[1]);
+                    arr.push(Number(obj[0]),Number(obj[1]));
+            }
+            )}
+            // alert(arr[0]);
+
+    polygonInstance = new Cesium.GeometryInstance({
+    geometry: Cesium.PolygonGeometry.fromPositions({
+        positions: Cesium.Cartesian3.fromDegreesArray(arr),
+        height:20,
+        extrudedHeight: 20,
+        vertexFormat: Cesium.VertexFormat.ALL
+    }),
+
+    attributes: {
+        color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000'))
+    }
+    });
+       
+          
+          scene.primitives.add(new Cesium.Primitive({
+            geometryInstances : polygonInstance,
+            appearance : new Cesium.EllipsoidSurfaceAppearance({
+                material : Cesium.Material.fromType('Checkerboard')
+            })
+}));
+      
+        });
+
+     
+
+        highpolygonInstance= new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.932028,28.188356,
+                119.275988,27.894984,
+                119.119987,28.403159,
+                119.546695,28.543999,
+              
+                    
+
+                   
+
+                ]),
+                height: 1055,
+                extrudedHeight: 1055,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000'))
+            }
+        });
+
+        var shazi_polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.491133,28.285150,
+                119.452775,28.246126,
+                119.340569,28.332514,
+                119.293163,28.278900,
+                119.261811,28.308954,
+                119.340968,28.370506,
+                ]),
+                height: 140,
+                extrudedHeight: 125,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+        });
+
+
+
+ 
+   
+
+
+    highPrimitive= new Cesium.Primitive({
+            // show: false,
+            geometryInstances: [highpolygonInstance],
+            undisplayable: true,
+            appearance: new Cesium.PerInstanceColorAppearance({
+            translucent: false,
+            closed: true,
+        })
+        });   
+        // viewer.scene.primitives.add(highPrimitive);
+
+
+
+
+        
+
+
+
+
+
+    //   viewer.clock.currentTime = Cesium.JulianDate.addHours(Cesium.JulianDate.now(new Date()),5, new Cesium.JulianDate());
+
+        viewer.scene.postProcessStages._fxaa.enabled = true;    
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(118.74409405832924,30.913589491018985,2596.9413514115845),//设置位置
+            orientation: {  
+                heading: Cesium.Math.toRadians(30.113508271459974),
+                pitch: Cesium.Math.toRadians(-55.56652777030725),
+            }
+        });
+
+
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+            // var position = event.position;
+            // var cartesian =  viewer.scene.pickPosition(position);
+            // if (!Cesium.defined(cartesian)) {
+            //     return;
+            // }
+            // var ellipsoid=viewer.scene.globe.ellipsoid;
+            // var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            // var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            // var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            // var height=cartographic.height;
+            // console.log(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+
+
+
+
+
+            let camera = Cesium.camera;
+    let cartographic =  camera.positionCartographic;
+    let lon =  Cesium.Math.toDegrees(cartographic.longitude);
+    let lat = Cesium.Math.toDegrees(cartographic.latitude);
+    console.log('经纬度 : [' + lon+','+lat+']');
+    console.log('地图高度 : '+ cartographic.height);
+    console.log('heading :'+ Cesium.Math.toDegrees(camera.heading));
+    console.log('pitch :'+ Cesium.Math.toDegrees(camera.pitch));
+    console.log('roll :'+ Cesium.Math.toDegrees(camera.roll));
+
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        // TimeClock()
+        startup(Cesium);
+    }
+</script>
+</body>
+
+</html>

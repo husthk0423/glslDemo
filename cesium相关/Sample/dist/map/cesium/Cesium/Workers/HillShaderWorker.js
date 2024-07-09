@@ -1,0 +1,1 @@
+define(["./when-c2e8ef35","./Check-c4f3a3fc","./Math-d30358ed","./Cartesian2-f9492f23","./Transforms-8b7e0d39","./RuntimeError-6122571f","./createTaskProcessorWorker","./DemData"],(function(e,r,a,t,f,n,c,s){"use strict";return c((function(e,r){let a=new s(e.rawImageData,"mapbox");return r.push(a.data.buffer),a}))}));
