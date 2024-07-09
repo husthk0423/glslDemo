@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>水流测试</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <button class="btn btn-primary" onclick="flood()">淹没分析</button>
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay">
+    <h1>Loading...</h1>
+</div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    var waterPrimitive;
+    // var timeClock=0.1;
+    
+    function startup(Cesium) {
+        createMap();
+    }
+    // function TimeClock() {
+    //     console.log(Cesium.ClockStep.TICK_DEPENDENT);
+    //     timeClock+=1;
+    //     requestAnimationFrame(TimeClock) 
+    // }
+    function flood() {
+        waterPrimitive.show = true;
+        var startHeight = 151;
+        var targetHeight = 500;
+        var waterHeight = startHeight;
+        var timer = setInterval(() => {
+            if (waterHeight < targetHeight) {
+                waterHeight += 5;
+                if (waterHeight > targetHeight) {
+                    waterHeight = targetHeight
+                }
+                updateHeight(waterPrimitive, waterHeight / startHeight, [119.66760572310903, 28.286631413472247]);
+            }
+        }, 100);
+    }
+
+
+
+    function updateHeight(waterPrimitive, scale, center) {
+        var cc = Cesium.Cartesian3.fromDegrees(center[0], center[1], 0);
+        let m = Cesium.Transforms.eastNorthUpToFixedFrame(cc);
+        let inverse = Cesium.Matrix4.inverse(m, new Cesium.Matrix4);
+
+        let mScale = Cesium.Matrix4.fromScale(new Cesium.Cartesian3(1.0, 1.0, scale));
+        let tt = Cesium.Matrix4.multiply(mScale, inverse, new Cesium.Matrix4);
+        waterPrimitive.modelMatrix = Cesium.Matrix4.multiply(m, tt, new Cesium.Matrix4);
+    }
+
+    function createMap() {
+        let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+            url:'http://data.mars3d.cn/terrain'
+
+        });
+        viewer = new Cesium.Viewer('cesiumContainer', {
+             selectionIndicator: false,
+            terrainProvider: cesiumTerrainProvider,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: true, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: true, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            vrButton: true,
+            useBrowserRecommendedResolution: false,
+            fullscreenButton: true
+        });
+        
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.preloadAncestors = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+        var scene = viewer.scene;
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "",
+            style: "",
+            format: "",
+            tileMatrixSetID: "",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        viewer.imageryLayers.add(tiandituImageLayer);
+
+
+
+        var waterMaterial = new Cesium.Material({
+            fabric: {
+                type: 'Water',
+                uniforms: {
+                    normalMap: '../image/water.jpg',
+                    frequency: 1000.0,
+                    animationSpeed: 0.1,
+                    amplitude: 4.0
+                }
+            }
+        });
+        $.getJSON("../data/河面测试数据.json",function(result){
+           let arr = []
+           result.features.forEach(item=>{
+             if(item&&item.geometry.coordinates){
+              item.geometry.coordinates.forEach(obj=>{
+                obj.forEach(data=>{
+                  if(Number(data[0])>0&&Number(data[1])>0){
+                    arr.push(Number(data[0]),Number(data[1]))
+                  }
+                })
+             })
+             }
+           })
+        //    alert(arr);
+        });
+        var polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                    119.467444, 28.562214,
+                    119.741000, 28.379154,
+                    119.639312, 28.372095,
+                    119.547387, 28.319825,
+                    119.374338, 28.43156,
+                    119.308763, 28.543007,
+                    119.324388, 28.596889,
+                    119.448939, 28.584777
+
+                   
+
+                ]),
+                height: 175,
+                extrudedHeight: 175,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000').withAlpha(0.5))
+            }
+        });
+
+
+
+
+    const czmFresnel=
+    `
+    float getMixValue(float cycle, inout float offset1, inout float offset2)
+    {
+
+        float mixval = cycle * 2.0;
+        if(mixval > 1.0) mixval = 2.0 - mixval;
+        offset1 = cycle;
+        offset2 = mod(offset1 + .5, 1.0);
+        return mixval;
+    }
+
+    float  getInterval(float _interval)
+    {
+        float time = czm_frameNumber;
+        //间隔速度，值越大，间隔时间越长；值越小，间隔时间越大；
+        float cycle = mod(time, _interval)/_interval;   
+        return cycle;
+    }
+
+
+   
+    czm_material czm_getMaterial(czm_materialInput materialInput)
+    { 
+        //水波时间
+        float timeInterval=300.;
+        float _WaveXSpeed=0.09;
+        float _WaveYSpeed=0.09; 
+        vec2  Repeat=vec2(6.0,6.0);    
+        vec3 waterColor = vec3(0.0196, 0.4235, 0.6431)*1.5;
+        // vec3 bottomColor=vec3(0.7608, 0.8118, 0.5569);
+        vec3 bottomColor=vec3(0.7451, 0.7686, 0.6471);
+        float o1, o2 = 0.;
+        float cycle = mod(czm_frameNumber, timeInterval)/timeInterval;
+        float mv = getMixValue(cycle, o1, o2);
+        float _time=getInterval(timeInterval);
+        
+        //流向控制
+        
+        //往上流
+        vec2 shang_speed = _time* vec2(_WaveXSpeed, -_WaveYSpeed);
+        //往下流
+         vec2 xia_speed =vec2(-_WaveXSpeed, _WaveYSpeed);
+         vec2 xia_speed1 =vec2(_WaveXSpeed, _WaveYSpeed);
+        //往左流
+         vec2 zuo_speed = _time* vec2(_WaveXSpeed, _WaveYSpeed);
+        //往右流
+         vec2 you_speed = _time* vec2(-_WaveXSpeed, -_WaveYSpeed);
+
+
+        czm_material material = czm_getDefaultMaterial(materialInput); 
+        
+        
+
+
+        vec3 bump1 = normalize(texture2D(WaveImage, fract(materialInput.st*vec2(8.0)))).rgb; 
+        vec3 bump2 = normalize(texture2D(WaveImage, fract(materialInput.st*vec2(8.0))-o1*xia_speed)).rgb; 
+        //叉乘得到法线分量
+        vec3 bumpnormaCross1 = normalize(cross(bump1, bump2));
+        vec3 bump3 = normalize(texture2D(WaveImage, fract(materialInput.st*vec2(8.0)))).rgb; 
+        vec3 bump4 = normalize(texture2D(WaveImage, fract(materialInput.st*vec2(8.0))-o2*xia_speed1)).rgb; 
+        //叉乘得到法线分量分量
+        vec3 bumpnormaCross2 = normalize(cross(bump3, bump4));
+        // //得到新的分量,保证水流连续
+        vec3 bumpnormaCross=mix(bumpnormaCross2, bumpnormaCross1, mv);
+       
+        //opengl光照原理,传入法向量
+        float diffuseFactor=czm_getLambertDiffuse(czm_lightDirectionEC,bumpnormaCross);
+        float specularFactor = czm_getSpecular(czm_lightDirectionEC, bumpnormaCross,normalize(materialInput.positionToEyeEC),10.0);
+       
+        
+        diffuseFactor= pow(diffuseFactor, 2.)* 1.;
+        
+        vec4 blue = vec4(0., 69., 129., 0.) / 255.;
+        vec4 orange = vec4(.7, .3, 0.1, 0.0);
+        float wd = dot(bumpnormaCross, czm_lightDirectionEC);
+        wd = max(0.0, wd);
+        float wrp = 0.5;
+        wd = (wd+wrp)/(1.+wrp);
+        
+        
+        vec3 frescol = diffuseFactor*orange.rgb*0.4+blue.rgb*wd;
+    
+
+        
+        vec3 finalColor=mix(bottomColor,frescol,0.3);
+        //水面高度-地形高度
+        float deltaHeghit=0.
+        material.diffuse=finalColor;
+        material.normal=normalize(materialInput.tangentToEyeMatrix * bumpnormaCross);;
+        material.specular=specularFactor;
+        material.shininess=10.;
+        material.alpha=0.7;
+        return material;
+    }
+    `;
+
+
+
+
+        const mWater = new Cesium.Material({
+        fabric: {
+            uniforms: {
+                WaveImage: "../image/water.jpg",
+                bottomImage: "../image/shazi.jpeg",
+            },
+            source: czmFresnel
+        }
+        });
+
+        waterPrimitive = new Cesium.Primitive({
+            // show: false,
+            geometryInstances: [polygonInstance],
+            undisplayable: true,
+            appearance: new Cesium.EllipsoidSurfaceAppearance({
+                material:mWater
+            })
+        });
+
+
+
+        viewer.scene.primitives.add(waterPrimitive);
+
+    //    viewer.clock.currentTime = Cesium.JulianDate.addHours(Cesium.JulianDate.now(new Date()),7, new Cesium.JulianDate());
+
+        viewer.scene.postProcessStages._fxaa.enabled = true;    
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(119.1620733283383, 28.65841206230267, 9042.75883),//设置位置
+            orientation: {  
+                heading: Cesium.Math.toRadians(123.69117),
+                pitch: Cesium.Math.toRadians(-16.37963),
+            }
+        });
+
+
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+            var position = event.position;
+            var cartesian =  viewer.scene.pickPosition(position);
+            if (!Cesium.defined(cartesian)) {
+                return;
+            }
+            var ellipsoid=viewer.scene.globe.ellipsoid;
+            var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            var height=cartographic.height;
+            console.log(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        // TimeClock()
+        startup(Cesium);
+    }
+</script>
+</body>
+
+</html>

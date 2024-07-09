@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>水流测试</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <!-- <button class="btn btn-primary" onclick="flood()">淹没分析</button> -->
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay">
+    <h1>Loading...</h1>
+</div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    var waterPrimitive;
+    // var timeClock=0.1;
+    
+    function startup(Cesium) {
+        createMap();
+    }
+    // function TimeClock() {
+    //     console.log(Cesium.ClockStep.TICK_DEPENDENT);
+    //     timeClock+=1;
+    //     requestAnimationFrame(TimeClock) 
+    // }
+    function flood() {
+        waterPrimitive.show = true;
+        var startHeight = 151;
+        var targetHeight = 500;
+        var waterHeight = startHeight;
+        var timer = setInterval(() => {
+            if (waterHeight < targetHeight) {
+                waterHeight += 5;
+                if (waterHeight > targetHeight) {
+                    waterHeight = targetHeight
+                }
+                updateHeight(waterPrimitive, waterHeight / startHeight, [119.66760572310903, 28.286631413472247]);
+            }
+        }, 100);
+    }
+
+
+
+    function updateHeight(waterPrimitive, scale, center) {
+        var cc = Cesium.Cartesian3.fromDegrees(center[0], center[1], 0);
+        let m = Cesium.Transforms.eastNorthUpToFixedFrame(cc);
+        let inverse = Cesium.Matrix4.inverse(m, new Cesium.Matrix4);
+
+        let mScale = Cesium.Matrix4.fromScale(new Cesium.Cartesian3(1.0, 1.0, scale));
+        let tt = Cesium.Matrix4.multiply(mScale, inverse, new Cesium.Matrix4);
+        waterPrimitive.modelMatrix = Cesium.Matrix4.multiply(m, tt, new Cesium.Matrix4);
+    }
+
+    function createMap() {
+        let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+            url:'http://data.mars3d.cn/terrain'
+
+        });
+        viewer = new Cesium.Viewer('cesiumContainer', {
+
+            // terrainProvider: cesiumTerrainProvider,
+
+            infoBox: false,
+  selectionIndicator: false,
+  shadows: true,
+  shouldAnimate: true,
+            selectionIndicator: false,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: true, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: true, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            vrButton: true,
+            useBrowserRecommendedResolution: false,
+            fullscreenButton: true
+        });
+         // 添加平行光源
+         let directionLight = Cesium.Cartesian3.normalize(
+            Cesium.Cartesian3.subtract(Cesium.Cartesian3.fromDegrees(121.5057994584009, 31.236637661330025, 0),
+                Cesium.Cartesian3.fromDegrees(121.5057994584009, 31.236637661330025, 5000), new Cesium.Cartesian3()),
+            new Cesium.Cartesian3());
+        let light = new Cesium.DirectionalLight({
+            direction: directionLight,
+            color: Cesium.Color.fromCssColorString("#d2d2d2"),
+            intensity: 5,
+        });
+        viewer.scene.light = light;
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.preloadAncestors = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        viewer.scene.fog.enabled = false;
+        var imageryLayers = viewer.imageryLayers;
+        var scene = viewer.scene;
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "",
+            style: "",
+            format: "",
+            tileMatrixSetID: "",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        // viewer.imageryLayers.add(tiandituImageLayer);
+        // viewer.imageryLayers.addImageryProvider(new Cesium.Tencent84ImageryProvider({
+        //     style: 4
+        // }))
+
+
+        var waterMaterial = new Cesium.Material({
+            fabric: {
+                type: 'Water',
+                uniforms: {
+                    normalMap: '../image/water.jpg',
+                    frequency: 1000.0,
+                    animationSpeed: 0.1,
+                    amplitude: 4.0
+                }
+            }
+        });
+        $.getJSON("../data/河面测试数据.json",function(result){
+           let arr = []
+           result.features.forEach(item=>{
+             if(item&&item.geometry.coordinates){
+              item.geometry.coordinates.forEach(obj=>{
+                obj.forEach(data=>{
+                  if(Number(data[0])>0&&Number(data[1])>0){
+                    arr.push(Number(data[0]),Number(data[1]))
+                  }
+                })
+             })
+             }
+           })
+        //    alert(arr);
+        });
+        var polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                    119.467444, 28.562214,
+                    119.741000, 28.379154,
+                    119.639312, 28.372095,
+                    119.547387, 28.319825,
+                    119.374338, 28.43156,
+                    119.308763, 28.543007,
+                    119.324388, 28.596889,
+                    119.448939, 28.584777
+
+                   
+
+                ]),
+                height: 125,
+                extrudedHeight: 125,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000').withAlpha(0.5))
+            }
+        });
+
+
+
+
+    const czmFresnel=
+    `
+    float getMixValue(float cycle, inout float offset1, inout float offset2)
+    {
+
+        float mixval = cycle * 2.0;
+        if(mixval > 1.0) mixval = 2.0 - mixval;
+        offset1 = cycle;
+        offset2 = mod(offset1 + .5, 1.0);
+        return mixval;
+    }
+
+    float  getInterval(float _interval)
+    {
+        float time = czm_frameNumber;
+        //间隔速度，值越大，间隔时间越长；值越小，间隔时间越大；    
+        float cycle = mod(time, _interval)/_interval;   
+        return cycle;
+    }
+    
+    czm_material czm_getMaterial(czm_materialInput materialInput)
+    { 
+        //水波时间
+        float timeInterval=200.;
+        float _WaveXSpeed=0.05;
+        float _WaveYSpeed=0.05; 
+        
+        float o1, o2 = 0.;
+        float cycle = mod(czm_frameNumber, timeInterval)/timeInterval;
+        float mv = getMixValue(cycle, o1, o2);
+        float _time=getInterval(timeInterval);
+ 
+        //往下流
+         vec2 xia_speed =vec2(_WaveXSpeed, _WaveYSpeed);
+         vec2 xia_speed1 =vec2(-_WaveXSpeed, _WaveYSpeed);
+         vec2 xia_speed2 =vec2(_WaveXSpeed, -_WaveYSpeed);
+
+        czm_material material = czm_getDefaultMaterial(materialInput); 
+
+        vec3 bump1 = normalize(texture2D(WaveImage, fract(materialInput.st))).rgb; 
+        vec3 bump2 = normalize(texture2D(WaveImage, fract(materialInput.st)-o1*xia_speed1)).rgb; 
+        vec3 bump3 = normalize(texture2D(WaveImage, fract(materialInput.st)-o2*xia_speed1)).rgb; 
+        vec3 bump4 = normalize(texture2D(WaveImage, fract(materialInput.st)-o2*xia_speed2)).rgb; 
+        //叉乘得到法线分量
+        vec3 bumpnormaCross1 = normalize(cross(bump1, bump2));
+        //叉乘得到法线分量分量
+        vec3 bumpnormaCross2 = normalize(cross(bump1, bump3));
+
+        vec3 bumpnormaCross3 = normalize(cross(bump1, bump4));
+        //得到新的分量,保证水流连续
+        vec3 bumpnormaCross=mix(bumpnormaCross2, bumpnormaCross1, mv);
+
+        // bumpnormaCross=mix(bumpnormaCross,bumpnormaCross3,mv);
+
+        
+        // vec3 bumpnormaCross=bumpnormaCross1;
+         //新加部分20221103 begin
+
+        //  vec3 bump4 = normalize(texture2D(WaveImage, fract(materialInput.st)+o2*xia_speed*0.4*vec2(0.1,0.2))).rgb; 
+        //  vec3 bumpnormaCross3 = normalize(cross(bump1, bump4));
+        //  bumpnormaCross+=mix(bumpnormaCross2, bumpnormaCross3, mv);
+        //  bumpnormaCross=normalize(bumpnormaCross);
+
+
+         //新加部分20221103 end
+
+
+
+
+       
+        //opengl光照原理,传入法向量
+        float diffuseFactor=czm_getLambertDiffuse(czm_lightDirectionEC,bumpnormaCross);
+        float specularFactor = czm_getSpecular(czm_lightDirectionEC, bumpnormaCross,normalize(materialInput.positionToEyeEC),10.0);
+       
+        
+        diffuseFactor= pow(diffuseFactor, 2.)* 1.;
+        
+        
+        float wd = dot(bumpnormaCross, czm_lightDirectionEC);
+        wd = max(0.0, wd);
+        float wrp = 0.5;
+        wd = (wd+wrp)/(1.+wrp);
+        
+        vec4 blue = vec4(0., 0.27, 0.50, 0.);
+        vec4 orange = vec4(.7, .3, 0.1, 0.0);
+        vec3 bottomColor=vec3(0.7451, 0.7686, 0.6471);
+
+        vec3 frescol = diffuseFactor*orange.rgb*0.4+blue.rgb*wd;
+
+        
+        material.diffuse=mix(bottomColor,frescol,0.3);
+        // material.diffuse=vec3(1.,0.2,0.5); 
+    
+        material.normal=normalize(materialInput.tangentToEyeMatrix * bumpnormaCross);
+        material.specular=specularFactor;
+        material.shininess=10.;
+        material.alpha=0.7;
+        return material;
+    }
+
+
+
+vec4 GetTargetColor()
+{
+    // vec2 uv = (gl_FragCoord.xy-vec2(1920.,1080.)*.01)/1080.;
+
+    return vec4(vec3(1.0),1.0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    `;
+
+   const czm_WaterVS=  `
+attribute vec3 position3DHigh;
+attribute vec3 position3DLow;
+attribute vec2 st;
+attribute float batchId;
+attribute vec3 normal;
+
+varying vec3 v_positionMC;
+varying vec3 v_positionEC;
+varying vec2 v_st;
+uniform mat4 ClipMatrix;
+
+void main()
+{ 
+    vec4 p = ClipMatrix*czm_computePosition();
+    
+    //hk 20221107
+    v_positionMC = position3DHigh + position3DLow;           // position in model coordinates
+    v_positionEC = (czm_modelViewRelativeToEye * p).xyz;     // position in eye coordinates
+    v_st = st;
+    gl_Position = czm_modelViewProjectionRelativeToEye * p;
+}
+`;
+const czm_WateFS=  `
+
+#define FAR 1000.
+#define FOG_COLOUR vec3(.33,.3,.3)
+#define SKY_TOP vec3(.1, .13, 0.13)
+
+vec3 camPos;
+float time;
+vec3 skyColour;
+const vec3 sunDir = normalize(vec3(4,8,18));
+    
+
+
+float hash12(vec2 p)
+{
+	vec3 p3  = fract(vec3(p.xyx) * .1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+vec2 hash22(vec2 p)
+{
+	vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
+    p3 += dot(p3, p3.yzx+33.33);
+    return fract((p3.xx+p3.yz)*p3.zy);
+}
+
+float hash13(vec3 p3)
+{
+	p3  = fract(p3 * .1031);
+    p3 += dot(p3, p3.zyx + 31.32);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float noise(in vec2 p)
+{
+	vec2 f = fract(p);
+    p = floor(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float res = mix(mix(hash12(p),
+						hash12(p + vec2(1.0, 0.0)), f.x),
+					mix(hash12(p + vec2(0.0, 1.0)),
+						hash12(p + vec2(1.0, 1.0)), f.x), f.y);
+    return res;
+}
+
+float noise(in vec3 p)
+{
+    const vec2 add = vec2(1.0, 0.0);
+
+    vec3 f = fract(p); 
+    f *= f * (3.0-2.0*f);
+    p = floor(p);
+
+    float h = mix(
+                    mix(mix(hash13(p), hash13(p + add.xyy),f.x),
+                        mix(hash13(p + add.yxy), hash13(p + add.xxy),f.x), f.y),
+                    mix(mix(hash13(p + add.yyx), hash13(p + add.xyx),f.x),
+                        mix(hash13(p + add.yxx), hash13(p + add.xxx),f.x), f.y),
+                 f.z);
+    return h*h*h*2.;
+}
+
+
+
+//------------------------------------------------------------------------------
+// A very basic sky...
+vec3 sky(vec3 dir)
+{
+ 
+    return mix(FOG_COLOUR, SKY_TOP ,abs(dir.y)*2.);
+}
+const float COSR = cos(.43);
+const float SINR = sin(.52);
+const mat2 rot2D = mat2(COSR, SINR, -SINR, COSR) * 1.4;
+float oceanFundamental(vec2 p, float tim, float iter)
+{
+    float a =noise(p*.01)*8.+3.0;
+    float h = 0.0;
+    float it = 1./iter;
+    float spr = 0.0;
+    p.x -= tim*5.0;
+
+    p *= .025;// ...Scale it
+
+    for (float i = 0.0; i <= 1.0; i += 0.14)
+    {
+        float t = (1.08-i) * tim;
+        float r =noise(p*2.1+t) * i;
+        vec2 y1 = (cos(p-t)+1.0);
+        vec2 y2 = (1.0-abs(sin(p-t)));
+        
+        y1 = mix(y1, y2, r);
+          
+        float s = y1.x + y1.y;
+        
+        h += s*a;
+        
+        a *= .59;
+        p = p * rot2D;
+        p += 19.9;
+    }
+
+    return h;
+}
+
+float map(in vec3 p, float iter)
+{
+    float h = oceanFundamental(p.xz, time, iter);
+    return p.y-h;
+}
+
+// Bog standard ray marching, there's so much noise that any misses get lost...🤞
+//-----------------------------------------------------------------
+vec2 rayMarch(vec3 p, vec3 dir)
+{
+    float d = 0.0;
+    float spr = 0.0;
+    for ( int i = 0; i < 120; i++)
+    {
+        vec3 pos = p + dir*d;
+
+        float hh = oceanFundamental(pos.xz, time, 7.);
+        float h = pos.y-hh;
+        
+        if (h < .11 || d > FAR)
+        {
+            break;
+        }
+        float wind = (noise(pos*.05)) * noise(pos*2.73+vec3(-time*10., time*.11,0));
+        spr += max(25.-h, 0.0) * smoothstep(40.0, .0,max(h, 0.0))*smoothstep(FAR, 0.0,d)*smoothstep(30., 80.0, hh)
+        * wind;
+
+
+        //if (h < 0.0) h *= .5;
+        d+= h*.7;
+    }
+    return vec2(d, min(spr*.03, 1.0));
+}
+
+mat3 viewMat (float ay, float az)
+{
+  vec2 o, ca, sa;
+  o = vec2 (ay, az);
+  ca = cos (o);
+  sa = sin (o);
+  return mat3 (ca.y, 0., - sa.y, 0., 1., 0., sa.y, 0., ca.y) *
+         mat3 (1., 0., 0., 0., ca.x, - sa.x, 0., sa.x, ca.x);
+}
+
+//------------------------------------------------------------------------------
+
+// I forgot where this came from, it using a higher iteration than the ray march...
+vec3 normal(vec3 pos, float ds)
+{
+    ds *= 2./1080.;
+    ds = max(ds*ds, .1);
+
+    float c = map(pos, 14.);
+    vec2 eps_zero = vec2(ds, 0.0);
+    return normalize(vec3(map(pos + eps_zero.xyy, 14.),
+                          map(pos + eps_zero.yxy, 14.),
+                          map(pos + eps_zero.yyx, 14.)) - c);
+}
+
+float waterPattern(vec2 p)
+{
+    p *=.02;
+    vec2 n = floor(p);
+    vec2 f = fract(p);
+    float wp = 1e10;
+    for (int i = -1;i<=1;i++)
+    {
+        for (int j = -1;j<=1;j++)
+        {
+            vec2 g = vec2(i, j);
+            vec2 o = hash22(n+g);
+            
+            vec2 r = g + o - f;
+            float d = dot(r, r);
+            if (d < wp)
+            {
+                wp = d;
+            }
+        }
+    }
+    return pow(wp, 3.5);
+}
+
+
+//------------------------------------------------------------------------------
+float waveDepth(vec3 p, vec3 dir)
+{
+    float d = 0.0;
+    for( float i = 3.0; i <= 23.0; i+=5.)
+    {
+        float h = map(p + dir*i, 7.);
+        if (h > 0.) break;
+        d += -h;
+    }
+    return clamp(1.0-d*.02, 0.0, 1.0);
+}
+
+//------------------------------------------------------------------------------
+vec3 lighting(vec3 pos, vec3 nor, in vec3 dir,in vec3 mat)
+{
+    vec3 col;
+    col = mat * max(dot(sunDir, nor), 0.0);
+    vec3 ref = reflect(dir, nor);
+    float fres = clamp(pow( 1.+dot(nor, dir), 7. ), 0.0, 1.0);
+    col = mix(col, sky(nor), .2);
+    col = mix(col, sky(ref), fres);
+    return col;
+}
+
+//------------------------------------------------------------------------------
+vec3 diffuse(in vec3 pos, in vec3 nor, in float dep)
+{
+    pos.x -= time*1.3;
+    vec3 mat = vec3(.1,.1,.12);
+    float h = smoothstep(0., 1.0,nor.y);
+    
+    mat += h*.1;
+
+    mat = mix(mat, vec3(.3,.7,.7), dep);
+
+
+    // Add different frequencies of voronoi cells...
+    float foam = waterPattern(pos.xz+99.)*25.;
+    foam += waterPattern(pos.xz*(1.5-nor.y)*30.0)*20.;
+    foam += waterPattern(pos.xz*8.)*16.;
+    
+    //foam += *10.;
+    
+    foam = clamp(foam, 0.0, 1.0);
+    
+
+    mat = mat+foam * dep*dep*2.;
+
+    return mat;
+}
+
+//------------------------------------------------------------------------------
+// Exponential fader...
+float fader(float edge0, float edge1, float x)
+{
+    float t = (x - edge0) / (edge1 - edge0);
+    return  clamp(exp((t-.9825)*3.)-.0525, 0.0, 1.0);
+}
+vec4 getTargetCol()
+{
+
+
+
+    
+}
+void main()
+{
+    
+
+    gl_FragColor =vec4(1.0);
+}
+`;
+
+        const mWater = new Cesium.Material({
+        fabric: {
+            uniforms: {
+                WaveImage: "../image/water.jpg",
+       
+            },
+            source: czmFresnel
+        },
+        // translucent: false,
+        // minificationFilter: Cesium.TextureMinificationFilter.LINEAR,
+        // magnificationFilter: Cesium.TextureMagnificationFilter.LINEAR,
+        });
+
+        waterPrimitive = new Cesium.Primitive({
+            show: true,
+            geometryInstances: [polygonInstance],
+            undisplayable: true,
+            appearance: new Cesium.EllipsoidSurfaceAppearance({
+                fragmentShaderSource:czm_WateFS,
+                vertexShaderSource:czm_WaterVS,
+                // translucent: true,
+            })
+        });
+
+        const appearance = this.waterPrimitive.appearance;
+
+        //赋顶点着色器uniform
+        appearance.uniforms={};
+        var v = [1, 0, 0, 0, 
+                 0, 1,0, 0, 
+                 0, 0, 1, 0,
+                 0, 0, 0, 1];
+        var m = Cesium.Matrix4.fromArray(v);
+        appearance.uniforms.ClipMatrix = m;
+
+
+
+
+        
+
+     //gl_FragColor = vec4(color1.r*color2.r, color1.g*color2.g, color1.b*color2.b, color1.a*color2.a);   
+
+
+
+
+        viewer.scene.sun.show=false
+        viewer.scene.primitives.add(waterPrimitive);
+
+      viewer.clock.currentTime = Cesium.JulianDate.addHours(Cesium.JulianDate.now(new Date()),7, new Cesium.JulianDate());
+
+        viewer.scene.postProcessStages._fxaa.enabled = true;    
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(119.1620733283383, 28.65841206230267, 9042.75883),//设置位置
+            orientation: {  
+                heading: Cesium.Math.toRadians(123.69117),
+                pitch: Cesium.Math.toRadians(-16.37963),
+            }
+        });
+
+
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+            var position = event.position;
+            var cartesian =  viewer.scene.pickPosition(position);
+            if (!Cesium.defined(cartesian)) {
+                return;
+            }
+            var ellipsoid=viewer.scene.globe.ellipsoid;
+            var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            var height=cartographic.height;
+            console.log(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        // TimeClock()
+        startup(Cesium);
+    }
+</script>
+</body>
+
+</html>

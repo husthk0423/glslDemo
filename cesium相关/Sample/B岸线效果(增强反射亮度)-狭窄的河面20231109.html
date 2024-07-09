@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>狭窄的河面.</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+    <style>
+        @import url(./CesiumWight.css);
+      </style>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <!-- <button class="btn btn-primary" onclick="waterActive()">显示primitive</button>
+    <button class="btn btn-primary" onclick="NoActive()">隐藏primitive</button> -->
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay">
+    <h1>Loading...</h1>
+</div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    // var waterPrimitive;
+
+    var highPrimitive;
+    var highpolygonInstance;
+    var shazi_Primitive;
+    var polygonInstance;
+    var mWater;
+    var czmFresnel
+    // var timeClock=0.1;
+    function NoActive()
+    {
+        waterPrimitive.show = false;
+    }
+    function waterActive() {
+        flood(viewer,polygonInstance,mWater)
+    }
+    function startup(Cesium) {
+        createMap();
+    }
+
+
+
+    function updateHeight(waterPrimitive, scale, center) {
+        var cc = Cesium.Cartesian3.fromDegrees(center[0], center[1], 0);
+        let m = Cesium.Transforms.eastNorthUpToFixedFrame(cc);
+        let inverse = Cesium.Matrix4.inverse(m, new Cesium.Matrix4);
+
+        let mScale = Cesium.Matrix4.fromScale(new Cesium.Cartesian3(1.0, 1.0, scale));
+        let tt = Cesium.Matrix4.multiply(mScale, inverse, new Cesium.Matrix4);
+        waterPrimitive.modelMatrix = Cesium.Matrix4.multiply(m, tt, new Cesium.Matrix4);
+    }
+
+    function createMap() {
+        let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+            url:'http://data.mars3d.cn/terrain'
+
+        });
+        viewer = new Cesium.Viewer('cesiumContainer', {
+             selectionIndicator: false,
+            //  terrainProvider: cesiumTerrainProvider,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: true, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: true, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            vrButton: true,
+            useBrowserRecommendedResolution: false,
+            fullscreenButton: true
+        });
+        
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.preloadAncestors = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+        var scene = viewer.scene;
+        imageryLayers.removeAll();
+
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "",
+            style: "",
+            format: "",
+            tileMatrixSetID: "",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        //  viewer.imageryLayers.add(tiandituImageLayer);
+
+
+
+        var waterMaterial = new Cesium.Material({
+            fabric: {
+                type: 'Water',
+                uniforms: {
+                    normalMap: '../image/water.jpg',
+                    frequency: 1000.0,
+                    animationSpeed: 0.1,
+                    amplitude: 4.0
+                }
+            }
+        });
+        $.getJSON("../data/河面测试数据.json",function(result){
+           let arr = []
+           result.features.forEach(item=>{
+             if(item&&item.geometry.coordinates){
+              item.geometry.coordinates.forEach(obj=>{
+                obj.forEach(data=>{
+                  if(Number(data[0])>0&&Number(data[1])>0){
+                    arr.push(Number(data[0]),Number(data[1]))
+                  }
+                })
+             })
+             }
+           })
+        //    alert(arr);
+        });
+        polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.467444, 28.562214,
+                119.741000, 28.379154,
+                119.639312, 28.372095,
+                119.547387, 28.319825,
+                119.374338, 28.43156,
+                119.308763, 28.543007,
+                119.324388, 28.596889,
+                119.448939, 28.584777
+
+
+                   
+
+                ]),
+                height:485,
+                extrudedHeight: 485,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000'))
+            }
+        });
+       
+
+        highpolygonInstance= new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.932028,28.188356,
+                119.275988,27.894984,
+                119.119987,28.403159,
+                119.546695,28.543999,
+              
+                    
+
+                   
+
+                ]),
+                height: 1055,
+                extrudedHeight: 1055,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.RED)
+            }
+        });
+
+        var shazi_polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                119.491133,28.285150,
+                119.452775,28.246126,
+                119.340569,28.332514,
+                119.293163,28.278900,
+                119.261811,28.308954,
+                119.340968,28.370506,
+                ]),
+                height: 140,
+                extrudedHeight: 125,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+        });
+
+
+
+ 
+   
+
+
+    highPrimitive= new Cesium.Primitive({
+            // show: false,
+            geometryInstances: [highpolygonInstance],
+            undisplayable: true,
+            appearance: new Cesium.PerInstanceColorAppearance({
+            translucent: false,
+            closed: true,
+        })
+        });   
+        // viewer.scene.primitives.add(highPrimitive);
+
+
+        const czm_WaterVS=  `
+        attribute vec3 position3DHigh;
+        attribute vec3 position3DLow;
+
+        attribute vec3 normal;
+        attribute vec3 tangent;
+        attribute vec3 bitangent;
+        attribute vec2 st;
+        attribute float batchId;
+
+        varying vec3 v_positionEC;
+        varying vec3 v_normalEC;
+        varying vec3 v_tangentEC;
+        varying vec3 v_bitangentEC;
+        varying vec2 v_st;
+        
+
+        void main()
+        {
+
+
+            vec3 Wpc=position3DHigh+position3DLow;
+            vec4 Epc = czm_view * vec4(Wpc,1.0);
+            v_positionEC = Epc.xyz;      // position in eye coordinates
+            v_normalEC = czm_normal * normal;                         // normal in eye coordinates
+            v_tangentEC = czm_normal * tangent;                       // tangent in eye coordinates
+            v_bitangentEC = czm_normal * bitangent;                   // bitangent in eye coordinates
+            v_st = st;
+            vec4 Cpc=czm_projection * Epc;
+            gl_Position = Cpc;
+
+
+        }   
+            `;
+
+        const czm_ExtraFS=`
+
+        uniform sampler2D normalTexture; 
+   
+
+
+        uniform vec3 camPos;
+        uniform vec2 uResolution;
+        uniform mat4 cameraWorldMatrix;
+        uniform mat4 cameraProjectionMatrixInverse;
+
+        uniform float uTime;
+        uniform sampler2D tDiffuse;
+        uniform sampler2D noiseSample;
+        uniform float uSize;
+        uniform float u_numRows;
+        uniform float u_slicesPerRow;
+        
+        float  getInterval(float _interval)
+        {
+            float time = czm_frameNumber;
+            //间隔速度，值越大，间隔时间越长；值越小，间隔时间越大；
+            float cycle = mod(time, _interval)/_interval;   
+            return cycle;
+        }
+
+        float getMixValue(float cycle, inout float offset1, inout float offset2)
+        {
+
+            float mixval = cycle * 2.0;
+            if(mixval > 1.0) mixval = 2.0 - mixval;
+            offset1 = cycle;
+            offset2 = mod(offset1 + .5, 1.0);
+            return mixval;
+        }
+        vec3 getBumpnormaCross(vec2 st)
+        {
+            vec2 repeat=vec2(8.0);
+            vec2 dRepeat=repeat;
+            float maxLength=50000.;
+            if(czm_eyeHeight>500.)
+            {
+                float pLength=clamp(czm_eyeHeight,500.,maxLength);
+                // float deltaR=1.-(pLength/maxLength)*2.;
+                float deltaR=(pLength/maxLength)*2.;
+                deltaR=clamp(deltaR,0.,1.);
+                dRepeat=repeat*vec2(deltaR);
+                dRepeat=clamp(dRepeat,vec2(1.0),repeat);
+                // Repeat=vec2(1.0);
+            }
+            //水波时间
+           
+            float _WaveXSpeed=-0.1;
+            float _WaveYSpeed=-0.111;  
+            float timeInterval=60.;
+            float o1, o2 = 0.;
+            float cycle = mod(czm_frameNumber, timeInterval)/timeInterval;
+            float mv = getMixValue(cycle, o1, o2);
+            float _time=getInterval(timeInterval);
+            vec2 xia_speed1 =vec2(-_WaveXSpeed, _WaveYSpeed);
+            vec3 bump1 = normalize(texture2D(normalTexture, fract(dRepeat*st))).rgb; 
+            vec3 bump2 = normalize(texture2D(normalTexture, fract(dRepeat*st+o1*xia_speed1))).rgb; 
+            //叉乘得到法线分量
+            vec3 bumpnormaCross1 = normalize(cross(bump1, bump2));
+            vec3 bump3 = normalize(texture2D(normalTexture, fract(dRepeat*st))).rgb; 
+            vec3 bump4 = normalize(texture2D(normalTexture, fract(dRepeat*st+o2*xia_speed1))).rgb; 
+            //叉乘得到法线分量分量
+            vec3 bumpnormaCross2 = normalize(cross(bump3, bump4));
+            // //得到新的分量,保证水流连续
+            vec3 bumpnormaCross=normalize(mix(bumpnormaCross2, bumpnormaCross1, mv));
+    
+            return bumpnormaCross;
+        }
+
+        vec3  getWaterColor()
+        {
+            return vec3(0.5411765,0.5647059,0.5294118);
+        }
+
+        vec2 computeSliceOffset(float slice, float slicesPerRow, vec2 sliceSize) {
+      return sliceSize * vec2(mod(slice, slicesPerRow), 
+                              floor(slice / slicesPerRow));
+    }
+    
+    vec4 sampleAs3DTexture(
+        sampler2D tex, vec3 texCoord, float size, float numRows, float slicesPerRow) {
+      float slice   = texCoord.z * size;
+      float sliceZ  = floor(slice);                         // slice we need
+      float zOffset = fract(slice);                         // dist between slices
+    
+      vec2 sliceSize = vec2(1.0 / slicesPerRow,             // u space of 1 slice
+                            1.0 / numRows);                 // v space of 1 slice
+    
+      vec2 slice0Offset = computeSliceOffset(sliceZ, slicesPerRow, sliceSize);
+      vec2 slice1Offset = computeSliceOffset(sliceZ + 1.0, slicesPerRow, sliceSize);
+    
+      vec2 slicePixelSize = sliceSize / size;               // space of 1 pixel
+      vec2 sliceInnerSize = slicePixelSize * (size - 1.0);  // space of size pixels
+
+      vec2 uv = slicePixelSize * 0.5 + texCoord.xy * sliceInnerSize;
+      vec4 slice0Color = texture2D(tex, slice0Offset + uv);
+      vec4 slice1Color = texture2D(tex, slice1Offset + uv);
+      return mix(slice0Color, slice1Color, zOffset);
+      return slice0Color;
+    }    
+
+    float epsilon  = 0.1;
+    // Define a function to generate 3D noise
+    float noise(vec3 p) {
+        return sampleAs3DTexture(noiseSample, p, uSize, u_numRows
+          ,u_slicesPerRow).r;
+    }
+    
+    // Define a function to calculate the flow vector at a given position
+    vec3 flowVector(vec3 p) {
+        // Calculate the gradient of the noise function at the current position
+        vec3 grad = vec3(
+            noise(p + vec3(epsilon, 0.0, 0.0)) - noise(p - vec3(epsilon, 0.0, 0.0)),
+            noise(p + vec3(0.0, epsilon, 0.0)) - noise(p - vec3(0.0, epsilon, 0.0)),
+            noise(p + vec3(0.0, 0.0, epsilon)) - noise(p - vec3(0.0, 0.0, epsilon))
+        ) / (2.0 * epsilon);
+    
+        // Add some random noise to the flow vector
+        vec3 noise_vec = vec3(
+            noise(p * 2.0 + vec3(0.0, 0.0, 0.0)),
+            noise(p * 2.0 + vec3(1.0, 0.0, 0.0)),
+            noise(p * 2.0 + vec3(0.0, 1.0, 0.0))
+        );
+        float main_flow_strength = 1.0;
+        float noise_strength = 1.0;
+        vec3 flow = normalize(grad) * main_flow_strength + normalize(noise_vec) * noise_strength;
+    
+        return flow;
+    }
+        float value = 2.0;
+    float xMin = -2.0;
+    float xMax = 2.0;
+    float yMin = -2.0 ;
+    float yMax = 2.0;
+    float zMin  = -10.0;
+    float zMax = 10.0;
+
+        bool insideCuboid (vec3 position) {
+            float x = position.x;
+            float y = position.y;
+            float z = position.z;
+            return x > xMin && x < xMax && y > yMin && y < yMax && z > zMin && z < zMax;
+        }
+
+
+
+        `;    
+        const czm_WateFS=  `
+            
+        varying vec3 v_positionEC;
+        varying vec3 v_normalEC;
+        varying vec3 v_tangentEC;
+        varying vec3 v_bitangentEC;
+        varying vec2 v_st;
+       
+       
+        void main()
+        {
+          
+        
+    //     vec2 uv =( gl_FragCoord.xy * 2.0 - (uResolution - vec2(0.5,0.5)) ) / uResolution;
+    //     vec2 p = gl_FragCoord.xy / uResolution.xy;
+
+    //     vec2 screenPos = uv;
+        
+    //     vec3 ray = (cameraWorldMatrix * cameraProjectionMatrixInverse * vec4( screenPos.xy, 1.0, 1.0 )).xyz;
+    //     ray = normalize( ray );
+        
+    //     vec3 cameraPosition = vec3(0.0,3.5,10);
+
+    //     // Ray Marching Variables
+    //     vec3 rayOrigin = cameraPosition;
+    //     vec3 rayDirection =ray;
+    //     vec3 sphereOirgin =  vec3(0.0, 0.0,0.0);
+
+    //     vec3 sum = texture(tDiffuse, p).xyz;
+    //     float rayDistance = 0.0;
+    //     float MAX_DISTANCE =20.0;
+    //     vec3 color = vec3(0.20,0.20,0.20);
+
+    //     for (int i = 0; i< 1000;i ++) {
+    //         vec3 currentStep = rayOrigin + rayDirection * rayDistance ;
+
+    //         // float dist = sphereSDF(currentStep, .00);
+
+    //         // Limit the clouds to a certain box, only within
+    //         // this box will be rendered.
+    //         bool insideBoundries = insideCuboid(currentStep);
+
+    //         float density = 0.1;
+    //         float trans = 0.03;
+    
+    //         if ( insideBoundries ) {
+    //       for (int i = 0; i< 2; i++) {
+    //         float distance = length(currentStep);
+    //         float s = sampleAs3DTexture(noiseSample, currentStep + uTime, uSize, u_numRows
+    //           ,u_slicesPerRow).r;
+             
+    //         if ( 0.1003 < abs(s)) {
+    //           density += abs(s);   
+    //         }
+
+    //         if (density > 1.0) {
+    //           break;
+    //         }
+    //         }
+    //         sum = mix(sum, color, density * trans ); 
+    //     }
+    //     if (rayDistance > MAX_DISTANCE) {  
+    //       break;
+    //     }
+    //     rayDistance += 0.1; 
+    //   }
+         gl_FragColor=vec4(1.0);
+
+
+        }
+        
+    `;
+   
+    var waterPrimitive= new Cesium.Primitive({
+            geometryInstances: [polygonInstance],
+            appearance: new Cesium.MaterialAppearance({
+                material:new Cesium.Material({
+                    translucent:this.translucent,
+                    fabric:{
+                        uniforms:{
+                            normalTexture: "../image/Waves_N.png",
+                            uTime:0.1,
+                            tDiffuse:"../image/11.jpeg",
+                            noiseSample:"../image/11.jpeg",
+                            uSize:0.1,
+                            u_numRows:0.1,
+                            u_slicesPerRow:0.1,
+
+                        },
+                        source:czm_ExtraFS
+                    }
+                }),
+                fragmentShaderSource:czm_WateFS,
+                vertexShaderSource:czm_WaterVS,
+                
+            }),
+            // asynchronous:false,
+        });
+
+
+
+
+         viewer.scene.primitives.add(waterPrimitive);
+
+
+
+        
+
+
+
+
+
+    //   viewer.clock.currentTime = Cesium.JulianDate.addHours(Cesium.JulianDate.now(new Date()),5, new Cesium.JulianDate());
+
+        viewer.scene.postProcessStages._fxaa.enabled = true;    
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(119.1620733283383, 28.65841206230267, 9042.75883),//设置位置
+            orientation: {  
+                heading: Cesium.Math.toRadians(123.69117),
+                pitch: Cesium.Math.toRadians(-16.37963),
+            }
+        });
+
+
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+            var position = event.position;
+            var cartesian =  viewer.scene.pickPosition(position);
+            if (!Cesium.defined(cartesian)) {
+                return;
+            }
+            var ellipsoid=viewer.scene.globe.ellipsoid;
+            var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            var height=cartographic.height;
+            console.log(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        // TimeClock()
+        startup(Cesium);
+    }
+</script>
+</body>
+
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>A弯曲流向(自由流向)控制.html</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+    <script type="text/javascript" src="../Build/jquery-3.1.1.min.js"></script>
+</head>
+<style>
+    html,
+    body,
+    #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer,
+    .cesium-viewer-cesiumWidgetContainer,
+    .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <!-- <button class="btn btn-primary" onclick="waterActive()">显示primitive</button>
+    <button class="btn btn-primary" onclick="NoActive()">隐藏primitive</button> -->
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay">
+    <h1>Loading...</h1>
+</div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    var polygonInstance;
+    function startup(Cesium) {
+        createMap();
+    }
+    function createMap() {
+        let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+            url:'http://data.mars3d.cn/terrain'
+
+        });
+        viewer = new Cesium.Viewer('cesiumContainer', {
+            selectionIndicator: false,
+            // terrainProvider: cesiumTerrainProvider,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: true, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: true, //是否显示时间  线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider: false,
+            vrButton: true,
+            useBrowserRecommendedResolution: false,
+            fullscreenButton: true
+        });
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.preloadAncestors = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+        var scene = viewer.scene;
+        imageryLayers.removeAll();
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "",
+            style: "",
+            format: "",
+            tileMatrixSetID: "",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        viewer.imageryLayers.add(tiandituImageLayer);
+        // $.getJSON("../data/河面测试数据.json",function(result){
+        //    let arr = []
+        //    result.features.forEach(item=>{
+        //      if(item&&item.geometry.coordinates){
+        //       item.geometry.coordinates.forEach(obj=>{
+        //         obj.forEach(data=>{
+        //           if(Number(data[0])>0&&Number(data[1])>0){
+        //             arr.push(Number(data[0]),Number(data[1]))
+        //           }
+        //         })
+        //      })
+        //      }
+        //    })
+        // });
+       polygonInstance = new Cesium.GeometryInstance({
+            geometry: Cesium.PolygonGeometry.fromPositions({
+                positions: Cesium.Cartesian3.fromDegreesArray([
+                120.010740,28.322382,
+                120.012945,28.317999,
+                120.023008,28.310313,
+                120.032178,28.310016,
+                120.037679,28.313637,
+                120.041849,28.317680,
+                120.048032,28.316779,
+                120.054566,28.312159,
+                120.061217,28.310710,
+                120.067278,28.311310,
+                120.079497,28.319162,
+                120.078039,28.323097,
+                120.066494,28.316083,
+                120.056980,28.315324,
+                120.050793,28.319201,
+                120.044026,28.321659,
+                120.036514,28.319765,
+                120.032688,28.315014,
+                120.026106,28.314470,
+                120.019757,28.318087,
+                120.017463,28.320882,
+                120.012713,28.327593
+                ]),
+                height:10,
+                extrudedHeight: 10,
+                vertexFormat: Cesium.VertexFormat.ALL
+            }),
+
+            attributes: {
+                color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString('#ff0000'))
+            }
+        });
+       
+        const czm_WaterVS=  `
+        attribute vec3 position3DHigh;
+        attribute vec3 position3DLow;
+
+        attribute vec3 normal;
+        attribute vec3 tangent;
+        attribute vec3 bitangent;
+        attribute vec2 st;
+        attribute float batchId;
+
+        varying vec3 v_positionEC;
+        varying vec3 v_normalEC;
+        varying vec3 v_tangentEC;
+        varying vec3 v_bitangentEC;
+        varying vec2 v_st;
+        
+
+        void main()
+        {
+
+
+            vec3 Wpc=position3DHigh+position3DLow;
+            vec4 Epc = czm_view * vec4(Wpc,1.0);
+            v_positionEC = Epc.xyz;      // position in eye coordinates
+            v_normalEC = czm_normal * normal;                         // normal in eye coordinates
+            v_tangentEC = czm_normal * tangent;                       // tangent in eye coordinates
+            v_bitangentEC = czm_normal * bitangent;                   // bitangent in eye coordinates
+            v_st = st;
+            vec4 Cpc=czm_projection * Epc;
+            gl_Position = Cpc;
+
+
+        }   
+        `;
+
+        const czm_ExtraFS=`
+        uniform sampler2D TestIMG;
+
+
+        struct S_flowData
+        {
+           vec2 stPos;//当前河道在uv系统中的位置,用户后续贝塞尔曲线插值
+           vec2 direction; //当前位置流向
+           int  flowIndex;//索引
+        };
+
+
+        float  getInterval(float _interval)
+        {
+            float time = czm_frameNumber;
+            //间隔速度，值越大，间隔时间越长；值越小，间隔时间越大；
+            float cycle = mod(time, _interval)/_interval;   
+            return cycle;
+        }
+        vec4  getSampleColor(vec2 st)
+        {
+            vec4 TestColor= texture2D(TestIMG,st);
+            return TestColor;
+        }
+
+        `;    
+        const czm_WateFS=  `
+            
+        varying vec3 v_positionEC;
+        varying vec3 v_normalEC;
+        varying vec3 v_tangentEC;
+        varying vec3 v_bitangentEC;
+        varying vec2 v_st;
+       
+        void main()
+        {
+          
+            vec3 positionToEyeEC = -v_positionEC;
+            mat3 tangentToEyeMatrix = czm_tangentToEyeSpaceMatrix(v_normalEC, v_tangentEC, v_bitangentEC);
+
+            vec3 normalEC = normalize(v_normalEC);
+        #ifdef FACE_FORWARD
+            normalEC = faceforward(normalEC, vec3(0.0, 0.0, 1.0), -normalEC);
+        #endif
+
+
+
+            czm_materialInput materialInput;
+            materialInput.normalEC = normalEC;
+            materialInput.tangentToEyeMatrix = tangentToEyeMatrix;
+            materialInput.positionToEyeEC = positionToEyeEC;
+            materialInput.st = v_st;
+             
+            czm_material material = czm_getDefaultMaterial(materialInput);
+        
+            //周期连续逻辑
+            float _time=getInterval(400.);
+            float phase0=_time*0.5;
+            float phase1=_time*0.5+0.5;
+            float flowLerp =abs((0.5-phase0)/0.5);
+       
+       
+            vec2 testSt1_front=phase0*vec2(-0.5, 0.);
+            vec2 testSt1_back=phase1*vec2(-0.5, 0.);
+
+            vec2 testSt2_front=phase0* vec2(0.5, 0.5);
+            vec2 testSt2_back=phase1* vec2(-0.5, 0.5);
+            
+            vec3 sampleColor,frontColor,BackColor;
+            sampleColor=frontColor=BackColor=vec3(1.0);
+            if(v_st.x<0.5)
+            {
+                frontColor =getSampleColor(fract(v_st*vec2(24.0))+testSt1_front).rgb;
+                BackColor =getSampleColor(fract(v_st*vec2(24.0))+testSt1_back).rgb;
+                sampleColor=mix(frontColor, BackColor, flowLerp);
+            } 
+            else
+            {
+                frontColor=getSampleColor(fract(v_st*vec2(14.0))+testSt2_front).rgb;
+                BackColor=getSampleColor(fract(v_st*vec2(14.0))+testSt2_back).rgb;
+                sampleColor=mix(frontColor, BackColor, flowLerp);
+            }
+
+            material.diffuse=sampleColor;
+            material.alpha=0.5;
+        #ifdef FLAT
+            gl_FragColor = vec4(material.diffuse + material.emission, material.alpha);
+        #else
+            gl_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
+        #endif
+        }
+    `;
+   
+        var waterPrimitive= new Cesium.Primitive({
+            geometryInstances: [polygonInstance],
+            appearance: new Cesium.MaterialAppearance({
+                material:new Cesium.Material({
+                    translucent:this.translucent,
+                    fabric:{
+                        uniforms:{
+                            TestIMG:"../image/Cesium_Logo_Color.jpg",
+                        },
+                        source:czm_ExtraFS
+                    }
+                }),
+                fragmentShaderSource:czm_WateFS,
+                vertexShaderSource:czm_WaterVS,
+                
+            }),
+            asynchronous:false,
+        });
+
+
+
+
+         viewer.scene.primitives.add(waterPrimitive);
+
+
+        viewer.scene.postProcessStages._fxaa.enabled = true;    
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(120.06769168934787,28.323541783956575, 8046.472877818192),//设置位置
+            orientation: {  
+                heading: Cesium.Math.toRadians(271.48689439870856),
+                pitch: Cesium.Math.toRadians(-65.8873103996899),
+            }
+        });
+
+
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(function (event) {
+           
+           
+            var position = event.position;
+            var cartesian =  viewer.scene.pickPosition(position);
+            if (!Cesium.defined(cartesian)) {
+                return;
+            }
+            var ellipsoid=viewer.scene.globe.ellipsoid;
+            var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+            var lat=Cesium.Math.toDegrees(cartographic.latitude);
+            var lng=Cesium.Math.toDegrees(cartographic.longitude);
+            var height=cartographic.height;
+            console.log(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+    //  let camera = Cesium.camera;
+    // let cartographic =  camera.positionCartographic;
+    // let lon =  Cesium.Math.toDegrees(cartographic.longitude);
+    // let lat = Cesium.Math.toDegrees(cartographic.latitude);
+    // console.log('经纬度 : [' + lon+','+lat+']');
+    // console.log('地图高度 : '+ cartographic.height);
+    // console.log('heading :'+ Cesium.Math.toDegrees(camera.heading));
+    // console.log('pitch :'+ Cesium.Math.toDegrees(camera.pitch));
+    // console.log('roll :'+ Cesium.Math.toDegrees(camera.roll));
+
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    }
+    if (typeof Cesium !== 'undefined') {
+        startup(Cesium);
+    }
+</script>
+</body>
+</html>

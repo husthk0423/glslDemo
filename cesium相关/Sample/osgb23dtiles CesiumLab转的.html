@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>加载公司白膜服务图层(512瓦片大小)</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css" />
+    <script src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script src="../Build/CustomCesiumSDK.js"></script>
+</head>
+
+<body>
+    <style>
+        html, body, #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    
+        .cesium-viewer, .cesium-viewer-cesiumWidgetContainer, .cesium-widget {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    
+        canvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+<div id="cesiumContainer" class="fullSize"></div>
+<button onclick="onChange()" style="position: absolute;left: 10px;top:10px;">改变位置</button>
+</body>
+<script>
+
+    Cesium.hasDebug3dTilesLength = true;
+    Cesium.debug3dTilesLength = 1;
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+        contextOptions: {
+            requestWebgl2: true,
+        },
+        selectionIndicator: false, // 是否获取选择周指示器
+        useBrowserRecommendedResolution: false, // 是否以浏览器建议的分辨率渲染
+        animation: false, // 是否显示动画控件
+        baseLayerPicker: false, // 是否显示图层选择控件
+        imageryProvider: false, //不加载cesium提供的图层
+        geocoder: false, // 是否显示地名查找控件
+        timeline: false, // 是否显示时间线控件
+        sceneModePicker: true, // 是否显示投影方式控件
+        navigationHelpButton: false, // 是否显示帮助信息控件
+        infoBox: false, // 是否显示点击要素之后显示的信息
+        msaaSamples:8
+    });
+
+    viewer.imageryLayers.removeAll();
+    viewer.scene.primitives.destroyPrimitives = false;
+    viewer.scene.globe.depthTestAgainstTerrain = false;
+    viewer.scene.globe.preloadAncestors =  false;
+    var imageryLayers = viewer.imageryLayers;
+    viewer.scene.fxaa=true;
+    viewer.scene.postProcessStages.fxaa.enabled = true;
+
+    function getInverseTransform (tileSet) {
+        let transform
+        let tmp = tileSet.root.transform
+        if ((tmp && tmp.equals(Cesium.Matrix4.IDENTITY)) || !tmp) {
+            // 如果root.transform不存在，则3DTiles的原点变成了boundingSphere.center
+            transform = Cesium.Transforms.eastNorthUpToFixedFrame(tileSet.boundingSphere.center)
+        } else {
+            transform = Cesium.Matrix4.fromArray(tileSet.root.transform)
+        }
+        return Cesium.Matrix4.inverseTransformation(transform, new Cesium.Matrix4())
+    }
+
+
+
+    const clippingByPositions = (tilesetData, originPositions) => {
+        const Cartesian3 = Cesium.Cartesian3;
+        const pointsLength = originPositions.length;
+        const clockwise = false;
+        //所有的裁切面
+        const clippingPlanes = [];
+        let positions;
+        if (clockwise) {
+            //如果为逆，则需要对数组取反
+            positions = originPositions.reverse();
+        } else {
+            positions = originPositions;
+        }
+
+
+     // const heightOffset = -100.0;
+     // const boundingSphere = tilesetData.boundingSphere;
+     // const cartographic = Cesium.Cartographic.fromCartesian(boundingSphere.center);
+     // const surface = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 0.0);
+     // const offset = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, heightOffset);
+     // const translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3());
+     // let modelMatrix = Cesium.Matrix4.fromTranslation(translation);
+
+
+
+        //转换矩阵
+        let inverseTransform = Cesium.Matrix4.inverseTransformation(
+            tilesetData.root.transform,
+            new Cesium.Matrix4()
+        );
+
+
+        // inverseTransform  = Cesium.Matrix4.multiplyTransformation(modelMatrix,inverseTransform,new Cesium.Matrix4());
+
+        for (let i = 0; i < pointsLength; ++i) {
+            const nextIndex = (i + 1) % pointsLength;
+            const next = Cesium.Matrix4.multiplyByPoint(
+                inverseTransform,
+                positions[nextIndex],
+                new Cesium.Cartesian3()
+            );
+            const now = Cesium.Matrix4.multiplyByPoint(
+                inverseTransform,
+                positions[i],
+                new Cesium.Cartesian3()
+            );
+
+
+            let midpoint = Cesium.Cartesian3.add(now, next, new Cesium.Cartesian3());
+            midpoint = Cesium.Cartesian3.multiplyByScalar(midpoint, 15, midpoint);
+            // 定义一个垂直向上的向量up
+            // let up = Cesium.Cartesian3.normalize(midpoint, new Cesium.Cartesian3());
+            let up = new Cesium.Cartesian3(0, 0,0.1);
+            //得到指向下一个点的向量
+            let right = Cartesian3.subtract(next, now, new Cartesian3());
+            right = Cartesian3.normalize(right, right);
+
+            let normal = Cartesian3.cross(right, up, new Cartesian3());
+            Cartesian3.normalize(normal, normal);
+            // if(clippingType.object.clippingType==='内部剖切'){
+                Cartesian3.negate(normal, normal);
+            // }
+            //将法向量进行反向
+            // Cartesian3.negate(normal, normal);
+
+            //由于已经获得了法向量和过平面的一点，因此可以直接构造Plane,并进一步构造ClippingPlane
+            let planeTmp = Cesium.Plane.fromPointNormal(now, normal);
+            // planeTmp.normal.z = 0;
+            const clipPlane = Cesium.ClippingPlane.fromPlane(planeTmp);
+
+            clippingPlanes.push(clipPlane);
+        }
+
+        const clipPlanes = new Cesium.ClippingPlaneCollection({
+            planes: clippingPlanes,
+            edgeColor: Cesium.Color.RED,
+            edgeWidth: 3.0,
+            enabled: true,
+            unionClippingRegions: false,
+        });
+        tilesetData.clippingPlanes = clipPlanes;
+        console.log("clippingPlanes", tilesetData.clippingPlanes);
+    };
+
+    function loadTileset() {
+        let tileset = viewer.scene.primitives.add(
+            new Cesium.Cesium3DTileset({
+                url:'http://localhost:8080/Data0228/tileset.json'
+                // clippingPlanes: clippingPlanes,
+            })
+        );
+
+
+
+        return tileset.readyPromise.then(function() {
+            var h = 0;
+            var c1 = new Cesium.Cartesian3.fromDegrees(104.634154,30.188488,h);
+            var c2 = new Cesium.Cartesian3.fromDegrees(104.634238,30.188513,h);
+            var c3 = new Cesium.Cartesian3.fromDegrees(104.634224,30.188448,h);
+            var c4 = new Cesium.Cartesian3.fromDegrees(104.634165,30.188421,h);
+
+            var ps = [c1,c2,c3,c4];
+            clippingByPositions(tileset,ps);
+
+            // viewer.camera.setView({
+            //     destination: Cesium.Cartesian3.fromDegrees(114.293789487477, 35.71498152596116, 627.724367140964), //设置位置
+            //     orientation: {
+            //         heading: Cesium.Math.toRadians(3.8112736838317627),
+            //         pitch: Cesium.Math.toRadians(-28.247132353179815),
+            //         roll: 0
+            //     }
+            // });
+
+            viewer.flyTo(tileset);
+
+            return tileset;
+        })
+            .catch((error) => {
+                console.log(error);
+            });
+    }
+    loadTileset();
+
+
+
+
+    var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+    handler.setInputAction(function (event) {
+        var position = event.position;
+        var cartesian =  viewer.scene.pickPosition(position);
+        if (!Cesium.defined(cartesian)) {
+            return;
+        }
+
+        var ellipsoid=viewer.scene.globe.ellipsoid;
+        var cartographic=ellipsoid.cartesianToCartographic(cartesian);
+        var lat=Cesium.Math.toDegrees(cartographic.latitude);
+        var lng=Cesium.Math.toDegrees(cartographic.longitude);
+        var height=cartographic.height;
+        alert(lng.toFixed(6)+','+ lat.toFixed(6)+','+height);
+
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+</script>
+
+</html>

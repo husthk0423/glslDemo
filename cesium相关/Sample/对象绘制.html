@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">  <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>对象绘制</title>
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+   <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+</head>
+<body class="sandcastle-loading" data-sandcastle-bucket="bucket-requirejs.html">
+<style>
+    html, body, #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer, .cesium-viewer-cesiumWidgetContainer, .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+    <button class="btn btn-primary" onclick="addOsgb()">添加osgb模型</button>
+    <button class="btn btn-info" onclick="addObj()">添加obj模型</button>
+</span>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay"><h1>Loading...</h1></div>
+<div id="toolbar"></div>
+<script id="cesium_sandcastle_script">
+    var viewer;
+    function startup(Cesium) {
+		createMap();
+    }
+
+    function addOsgb(){
+       var tile3d = new Cesium.Cesium3DTileset({
+            maximumMemoryUsage:1024,
+            url: '../data/nanjiang3dtiles/tileset.json',
+        });
+
+        viewer.scene.primitives.add(tile3d);
+    }
+
+    function addObj(){
+        var m = Cesium.Matrix4.IDENTITY;
+        m = Cesium.Matrix4.setScale(m,new Cesium.Cartesian3(1,1,1),new Cesium.Matrix4());
+        var initModelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(Cesium.Cartesian3.fromDegrees(118.929524,31.351174,0));
+        initModelMatrix = Cesium.Matrix4.multiply( initModelMatrix,m, new Cesium.Matrix4());
+
+        var model =  new Cesium.Model.fromGltf({
+            id:'shanghai',
+            url : '../data/Tower.glb',
+            scale:1,
+            modelMatrix: initModelMatrix,
+            forwardAxis: Cesium.Axis.X,
+            upAxis:Cesium.Axis.Y
+        });
+
+        viewer.scene.primitives.add(model);
+    }
+
+    function addPointAndLabel(){
+        viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(118.924246,31.355329,10),
+            point:{
+                color:Cesium.Color.RED,
+                pixelSize:10
+            },
+            label:{
+                text:'水利gis测评',
+                font:'13pt sans-serif',
+                pixelOffset:new Cesium.Cartesian2(60,0)
+            }
+        });
+    }
+
+    function addLine(){
+        viewer.entities.add({
+            polyline: {
+                positions: [
+                    Cesium.Cartesian3.fromDegrees(118.924449,31.354697),
+                    Cesium.Cartesian3.fromDegrees(118.926210,31.354725),
+                    Cesium.Cartesian3.fromDegrees(118.925920,31.354132),
+                ],
+                width: 10.0,
+                material: new Cesium.PolylineGlowMaterialProperty({
+                    color: Cesium.Color.DEEPSKYBLUE,
+                    glowPower: 0.25,
+                }),
+            },
+        });
+    }
+
+
+    function addPolygon(){
+        viewer.entities.add({
+            polygon: {
+                hierarchy: new Cesium.PolygonHierarchy(
+                    Cesium.Cartesian3.fromDegreesArray([
+                        118.925619, 31.353461,
+                        118.925386, 31.352665,
+                        118.926072, 31.353022
+                    ])
+                ),
+                outline: true,
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 4,
+                material: Cesium.Color.fromCssColorString('#ff0000'),
+            }
+        });
+    }
+
+    function addSolid(){
+        viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(118.927137,31.353198, 0.0),
+            box: {
+                dimensions: new Cesium.Cartesian3(40.0, 30.0, 50.0),
+                material: Cesium.Color.fromRandom({ alpha: 1.0 }),
+            },
+        });
+
+        viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(118.926672,31.351699, 0),
+            ellipsoid: {
+                radii: new Cesium.Cartesian3(60.0, 60.0, 60.0),
+                outline: true,
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 2,
+                material: Cesium.Color.fromRandom({ alpha: 0.5 }),
+            },
+        });
+
+        viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(118.928052,31.352028),
+            ellipse: {
+                semiMinorAxis: 25.0,
+                semiMajorAxis: 25.0,
+                height: 0.0,
+                extrudedHeight: 20.0,
+                rotation: Cesium.Math.toRadians(-40.0),
+                outline: false,
+                stRotation: Cesium.Math.toRadians(90),
+                material: Cesium.Color.fromRandom({ alpha: 1.0 }),
+            },
+        });
+
+        viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(118.928990,31.352174),
+            ellipse: {
+                semiMinorAxis: 15.0,
+                semiMajorAxis: 25.0,
+                height: 0.0,
+                extrudedHeight: 20.0,
+                rotation: Cesium.Math.toRadians(-40.0),
+                outline: false,
+                stRotation: Cesium.Math.toRadians(90),
+                material: Cesium.Color.fromRandom({ alpha: 1.0 }),
+            },
+        });
+
+        viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(118.928162,31.353350, 0.0),
+            cylinder: {
+                hierarchy: new Cesium.PolygonHierarchy(
+                    Cesium.Cartesian3.fromDegreesArray([
+                        -118.0,
+                        30.0,
+                        -115.0,
+                        30.0,
+                        -117.1,
+                        31.1,
+                        -118.0,
+                        33.0,
+                    ])
+                ),
+                length: 60.0,
+                topRadius: 0.0,
+                bottomRadius: 60.0,
+                material: Cesium.Color.fromRandom({ alpha: 1.0 }),
+            },
+        });
+    }
+
+
+    function createMap() {
+        viewer  = new Cesium.Viewer('cesiumContainer',{selectionIndicator: false,
+        useBrowserRecommendedResolution:false,
+        animation: false,  //是否显示动画控件
+        baseLayerPicker: false, //是否显示图层选择控件
+        geocoder: false, //是否显示地名查找控件
+        timeline: false, //是否显示时间线控件
+        sceneModePicker: true, //是否显示投影方式控件
+        navigationHelpButton: false, //是否显示帮助信息控件
+        infoBox: false,  //是否显示点击要素之后显示的信息
+        imageryProvider:false,
+        fullscreenButton: true});
+
+        viewer.scene.globe.preloadAncestors = false;
+
+		viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        var imageryLayers = viewer.imageryLayers;
+
+        Cesium.viewer = viewer;
+
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "tdtImg_c",
+            style: "default",
+            format: "tiles",
+            tileMatrixSetID: "c",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        viewer.imageryLayers.add(tiandituImageLayer);
+
+        addPointAndLabel();
+        addLine();
+        addPolygon();
+        addSolid()
+
+        viewer.camera.setView({
+            destination:Cesium.Cartesian3.fromDegrees(118.93059026255222,31.346008856371498,468.28),
+            orientation:{
+                heading:Cesium.Math.toRadians(359.9999),
+                pitch:Cesium.Math.toRadians(-28.672),
+                roll:Cesium.Math.toRadians(359.98606702327737)
+            }
+        });
+    }
+
+    if (typeof Cesium !== 'undefined') {
+        startup(Cesium);
+    }
+</script>
+</body>
+</html>

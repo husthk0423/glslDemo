@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">  <!-- Use Chrome Frame in IE -->
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="A sample Vector dataset on terrain rendered with 3D Tiles.">
+    <meta name="cesium-sandcastle-labels" content="Showcases, 3D Tiles">
+    <title>规则建模</title>
+
+    <link rel="stylesheet" href="../Build/bootstrap.css">
+    <script type="text/javascript" src="../Build/CesiumUnminified/Cesium.js"></script>
+    <script type="text/javascript" src="../Build/CustomCesiumSDK.js"></script>
+    <script src="../Build/jquery-3.1.1.min.js"></script>
+    <script type="text/javascript" src="../Build/measureMap.js"></script>
+
+    <script type="text/javascript" src="../js/plotUtil.js"></script>
+    <script type="text/javascript" src="../js/algorithm.js"></script>
+    <script type="text/javascript" src="../js/GlobeTooltip.js"></script>
+    <script type="text/javascript" src="../js/GlobePolygonDrawer.js"></script>
+    <script type="text/javascript" src="../js/GlobeRectangleDrawer.js"></script>
+    <script type="text/javascript" src="../js/GlobePolylineDrawer.js"></script>
+    <script type="text/javascript" src="../js/GlobeCircleDrawer.js"></script>
+    <script type="text/javascript" src="../js/GlobePointDrawer.js"></script>
+    <script type="text/javascript" src="../js/GlobeBufferLineDrawer.js"></script>
+    <script type="text/javascript" src="../js/GlobePointMeasure.js"></script>
+    <script type="text/javascript" src="../js/GlobePolylineSpaceMeasure.js"></script>
+    <script type="text/javascript" src="../js/GlobePolylineStickMeasure.js"></script>
+    <script type="text/javascript" src="../js/GlobePolygonMeasure.js"></script>
+    <script type="text/javascript" src="../js/PlotStraightArrowDrawer.js"></script>
+    <script type="text/javascript" src="../js/PlotAttackArrowDrawer.js"></script>
+    <script type="text/javascript" src="../js/PlotPincerArrowDrawer.js"></script>
+    <script type="text/javascript" src="../js/GlobeTracker.js"></script>
+    <script type="text/javascript" src="../js/draw.js"></script>
+    <script type="text/javascript" src="./config.js"></script>
+</head>
+<body class="sandcastle-loading" data-sandcastle-bucket="bucket-requirejs.html">
+<style>
+    html, body, #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .cesium-viewer, .cesium-viewer-cesiumWidgetContainer, .cesium-widget {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+</style>
+<span style="position: absolute;top:10px;left:10px;">
+  <button class="btn btn-primary" onclick="distance()">距离量算</button>
+  <button class="btn btn-success" onclick="area()">面积量算</button>
+  <button class="btn btn-info" onclick="clearEntities()">清除</button>
+    <input id="drawPolyline" type="button" class="layui-btn layui-btn-sm layui-btn-normal btn btn-warning" value="量高" />
+</span>
+
+
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="toolTip" style="display:none;position:fixed;height:20px;width:127px;background:rgba(0,0,0,0.5);top:0px;left:0px">
+</div>
+
+<script id="cesium_sandcastle_script">
+
+    var viewer;
+    var handler;
+    //三维模型对象
+    var dayantaTileset ;
+    var clickedObject = {
+        distanceState: false,
+        areaState: false,
+        index: null
+      };
+    function startup(Cesium) {
+		createMap();
+    highQuantity()
+    }
+
+    let cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+        url: '../data/zjTerrain'
+    });
+    //量高
+    function highQuantity(){
+      initDrawHelper(viewer);
+    }
+
+    //清除对象
+    function clearEntities(){
+      var entities = [];
+      viewer.entities.values.forEach((item, index) => {
+        if (
+          item.name === "空间直线距离" ||
+          item.name === "直线" ||
+          item.name === "多边形面积" ||
+          item.name === "多边形"
+        ) {
+          entities.push(item);
+        }
+      })
+      removeEntity(entities)
+    }
+
+    function removeEntity(list){
+      if (list.length > 0) {
+        viewer.entities.remove(list[0]);
+        list.splice(0, 1);
+        removeEntity(list);
+      }
+    }
+
+    //距离量算
+    function distance(){
+      clickedObject.index = 1
+      clickedObject.distanceState = true
+      measureLineSpace(viewer,handler,clickedObject)
+    }
+
+   //面积量算
+   function area(){
+      clickedObject.index = 2
+      clickedObject.distanceState = true
+      measureAreaSpace(viewer,handler,clickedObject)
+   }
+
+    function createMap() {
+           viewer  = new Cesium.Viewer('cesiumContainer',{selectionIndicator: false,
+            terrainProvider : cesiumTerrainProvider,
+            useBrowserRecommendedResolution:false,
+            animation: false,  //是否显示动画控件
+            baseLayerPicker: false, //是否显示图层选择控件
+            geocoder: false, //是否显示地名查找控件
+            timeline: false, //是否显示时间线控件
+            sceneModePicker: true, //是否显示投影方式控件
+            navigationHelpButton: false, //是否显示帮助信息控件
+            infoBox: false,  //是否显示点击要素之后显示的信息
+            imageryProvider:false,
+            fullscreenButton: true});
+
+        viewer.scene.globe.preloadAncestors = false;
+
+        viewer.scene.primitives.destroyPrimitives = false;
+        viewer.scene.globe.depthTestAgainstTerrain = false;
+        var imageryLayers = viewer.imageryLayers;
+
+        Cesium.viewer = viewer;
+
+        handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+
+        //天地图影像图层
+        var tiandituImageLayer = new Cesium.ImageryLayer(new Cesium.WebMapTileServiceImageryProvider({
+            url: baseMapUrl,
+            layer: "tdtImg_c",
+            style: "default",
+            format: "tiles",
+            tileMatrixSetID: "c",
+            subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+            tilingScheme: new Cesium.GeographicTilingScheme(),
+            tileMatrixLabels: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+            maximumLevel: 18,
+        }));
+        viewer.imageryLayers.add(tiandituImageLayer);
+
+        //加载三维模型
+        dayantaTileset = new Cesium.Cesium3DTileset({
+            url: '../data/nanjiang3dtiles/tileset.json',
+        });
+
+        let p = viewer.scene.primitives.add(dayantaTileset);
+        //跳转到整个三维模型的视角
+        // p.readyPromise.then( function(tileset) {
+        //   viewer.flyTo(tileset)
+        // })
+
+
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            118.93791126541784,
+            31.35451964032002,
+            499.9899843559913
+          ), //设置位置
+          orientation: {
+            heading: Cesium.Math.toRadians(359.99999999999613),
+            pitch: Cesium.Math.toRadians(-28.6720574011962),
+            roll: Cesium.Math.toRadians(1.7302209999999265),
+          },
+        })
+    }
+
+    
+
+    if (typeof Cesium !== 'undefined') {
+        startup(Cesium);
+    }
+</script>
+</body>
+</html>
