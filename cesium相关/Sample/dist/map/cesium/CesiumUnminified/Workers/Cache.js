@@ -1,1 +1,0 @@
-define(["./LinkedQueue"],(function(t){"use strict";return class{constructor(t){this.init(t)}init(e){this.limit=e||10,this.map={},this.keys=new t}set(t,e){let i=this.map,s=this.keys,n=null;if(!Object.prototype.hasOwnProperty.call(i,t)){if(s.length===this.limit){let t=s.shift();n=i[t],delete i[t]}s.push(t)}return i[t]=e,n}get(t){return this.map[t]}}}));
