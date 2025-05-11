@@ -5,11 +5,14 @@
  
  shadertoy，地址：https://www.shadertoy.com/  
  
- vertexshaderart,地址： vertexshaderart.com  
+ vertexshaderart,地址：https://www.vertexshaderart.com/
  
  glslsandbox，地址：https://glslsandbox.com/  
  
- unityShader,冯乐乐版 《unity Shader入门精要》 
+ unityShader,冯乐乐版 《unity Shader入门精要》  
+
+ 3D数学和基础渲染基础，《3D数学基础：图形与游戏开发》
+ 
  
  末尾附联系方式，更多持续不断更新中.... 
 # 代码示例 
